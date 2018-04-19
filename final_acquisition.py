@@ -82,23 +82,35 @@ class myFirstGUI:
         #draw background rectangle
         self.static_width = 800
         self.rectangle = Canvas(self.background_label, bg = self.background, width = self.static_width, height = 150)
-        self.rectangle.place(relx = 0.5, rely = 0.4, anchor = "center")
+        #self.rectangle.place(relx = 0.5, rely = 0.4, anchor = "center")
         
         #draw first moving rectangle
         self.variable_width = 0
         self.rectangle_variable = Canvas(self.rectangle, bg = self.my_yellow, width = self.variable_width, height = 150)
-        self.rectangle_variable.place(relx = 0, rely = 0)
+        #self.rectangle_variable.place(relx = 0, rely = 0)
 
         #draw first breathing instruction 
         self.instruction_widget = Label(self.background_label, textvariable = self.breathing_instruction, font = ("Helvetica", 65), background = self.background, foreground = self.my_yellow)
-        self.instruction_widget.place(relx = 0.5, rely = 0.65, anchor = "center")
+        #self.instruction_widget.place(relx = 0.5, rely = 0.65, anchor = "center")
         
         #measure initial time
         self.initial_time = time.time()
 
+        #declare widgets for baseline layout
+        self.relaxation_widget = Label(self.background_label, text = "Respire normalmente durante 4 minutos.", font = ("Helvetica", 22), background = self.background, foreground = "#ffffff")
+        self.relaxation_widget2 = Label(self.background_label, text = "Permaneça relaxado." , font = ("Helvetica", 22), background = self.background, foreground = "#ffffff")
+        self.remaining_time = StringVar()
+        self.countdown_clock = Label(self.background_label, textvariable = self.remaining_time, font = ("Helvetica", 35), background = self.background, foreground = "#49a834")
+
         #call meque no botãthod that will start iterative updates
         self.master.bind("<d>", self.delete_this) #just for debug
+        
+        
+        self.relaxation_widget.place(relx = 0.5, rely = 0.40, anchor = "center")
+        self.relaxation_widget2.place(relx = 0.5, rely = 0.65, anchor = "center")
+        
         self.move_rectangle()
+
 
     def hrv_clear_rectangles(self):
         #this function was developed later, that's why it's not used everywhere
@@ -125,28 +137,25 @@ class myFirstGUI:
             if self.increase:
                 self.increase = False
                 #update instruction widget
-                self.breathing_instruction.set("EXPIRE")
-                self.instruction_widget.place_forget()
-                self.instruction_widget.config(foreground = self.my_blue)
-                self.instruction_widget.place(relx = 0.5, rely = 0.65, anchor = "center")
                 self.title_widget.place_forget()
-                self.title_widget.place(relx = 0.5, rely = 0.2, anchor = "center")
+                self.instruction_widget.place_forget()
+                self.breathing_instruction.set("EXPIRE")
+                self.instruction_widget.config(foreground = self.my_blue)
                 self.rectangle_variable.config(bg = self.my_blue)
+                self.title_widget.place(relx = 0.5, rely = 0.20, anchor = "center")
                 
             else:
                 self.increase = True
                 #update instruction widget
-                self.breathing_instruction.set("INSPIRE")
-                self.instruction_widget.place_forget()
-                self.instruction_widget.config(foreground = self.my_yellow)
-                self.instruction_widget.place(relx = 0.5, rely = 0.65, anchor = "center")
                 self.title_widget.place_forget()
-                self.title_widget.place(relx = 0.5, rely = 0.2, anchor = "center")
+                self.instruction_widget.place_forget()
+                self.breathing_instruction.set("INSPIRE")
+                self.instruction_widget.config(foreground = self.my_yellow)                
                 self.rectangle_variable.config(bg = self.my_yellow)
+                self.title_widget.place(relx = 0.5, rely = 0.20, anchor = "center")
+
         #Either way, increase or decrease is proportional to time left for 5 seconds
         if(self.increase):
-            self.rectangle_variable.place_forget()
-
             #width increase
             self.variable_width = (self.static_width / self.breathing_interval) * (actual_time - self.iteration_start_time)
             #Shift growth direction
@@ -155,12 +164,9 @@ class myFirstGUI:
                 self.increase = False
                 self.iteration_start_time = time.time()
                 #update instruction widget
-                self.breathing_instruction.set("INSPIRE")
                 self.instruction_widget.place_forget()
+                self.breathing_instruction.set("INSPIRE")
                 self.instruction_widget.config(foreground = self.my_yellow)
-                self.instruction_widget.place(relx = 0.5, rely = 0.65, anchor = "center")
-                self.title_widget.place_forget()
-                self.title_widget.place(relx = 0.5, rely = 0.2, anchor = "center")
                 self.rectangle_variable.config(bg = self.my_yellow)
         else:                                 
             #width decrease
@@ -170,20 +176,33 @@ class myFirstGUI:
                 self.variable_width = 0
                 self.increase = True
                 self.iteration_start_time = time.time()
-                
                 #update instruction widget
-                self.breathing_instruction.set("EXPIRE")
                 self.instruction_widget.place_forget()
+                self.breathing_instruction.set("EXPIRE")
                 self.instruction_widget.config(foreground = self.my_blue)
-                self.instruction_widget.place(relx = 0.5, rely = 0.65, anchor = "center")
-                self.title_widget.place_forget()
-                self.title_widget.place(relx = 0.5, rely = 0.2, anchor = "center")
                 self.rectangle_variable.config(bg = self.my_blue)
+
+        
+        #clear layout
+        
+        # self.title_widget.place_forget()
+        
+        # self.instruction_widget.place_forget()
+        # self.rectangle.place_forget()
+        # self.background_label.place_forget()
         
         #call functions to draw the new rectangle
         self.rectangle_variable.place_forget()
         self.rectangle_variable.config(width = self.variable_width)
         self.rectangle_variable.place(relx = 0, rely = 0)
+        self.instruction_widget.place(relx = 0.5, rely = 0.65, anchor = "center")
+    	
+
+        # self.background_label.place(x = 0, y = 0, relwidth = 1, relheight = 1)
+        # self.rectangle.place(relx = 0.5, rely = 0.4, anchor = "center")
+        # self.title_widget.place(relx = 0.5, rely = 0.20, anchor = "center")
+        # self.instruction_widget.place(relx = 0.5, rely = 0.65, anchor = "center")
+        # self.rectangle_variable.place(relx = 0, rely = 0)
 
         #after the update, check if the total experiment time was acchieved
         if actual_time - self.initial_time > self.total_duration:
@@ -192,16 +211,26 @@ class myFirstGUI:
             self.start_pvt()
 
     def layout_baseline(self):
+        now = time.time()
+        seconds = int(4*60 - (now - self.initial_time))
+        
         #clear layout
-        self.hrv_clear_rectangles()
-        #set new layout
+        self.title_widget.place_forget()
+        self.relaxation_widget.place_forget()
+        self.relaxation_widget2.place_forget()
+        self.countdown_clock.place_forget()
+        self.background_label.place_forget()
+
+        self.remaining_time.set(repr(int(seconds/60)) + ":" + repr(seconds % 60))
+
+        #set layout
+        self.background_label.place(x = 0, y = 0, relwidth = 1, relheight = 1)      
         self.title_widget.place(relx = 0.5, rely = 0.20, anchor = "center")
-        #self.title_widget.config
-        self.relaxation_widget = Label(self.background_label, text = "Respire normalmente durante 4 minutos.", font = ("Helvetica", 22), background = self.background, foreground = "#ffffff")
-        self.relaxation_widget2 = Label(self.background_label, text = "Permaneça relaxado." , font = ("Helvetica", 22), background = self.background, foreground = "#ffffff")
         self.relaxation_widget.place(relx = 0.5, rely = 0.40, anchor = "center")
         self.relaxation_widget2.place(relx = 0.5, rely = 0.65, anchor = "center")
-    
+        self.countdown_clock.place(relx = 0.5, rely = 0.80, anchor = "center")
+
+
     def delete_this(self, event = None):
         #this is just to debug, to skip the base line faster. after pressing the button <d> the baseline ends in 20 seconds, and then deep breathing starts
         self.initial_time = time.time() - 55*4
@@ -213,20 +242,26 @@ class myFirstGUI:
                 #the first 4 minute is just to measure baseline and relax
                 if self.baseline == True:
                     self.layout_baseline()
-                    self.baseline = False
+                    self.call_identifier = self.master.after(100, self.move_rectangle)
                 
             else:
-                if self.baseline == False:
+                if self.baseline == True:
+                    self.baseline = False
+                    self.background_label.place_forget()
+                    self.title_widget.place_forget()
                     self.relaxation_widget.place_forget()
                     self.relaxation_widget2.place_forget()
-                    self.hrv_clear_rectangles()
-                    self.hrv_place_rectangles()
-                    self.baseline = True #this is just to not verify this condition anymore. this will only run one time, and it's to set the first layout...
+                    self.countdown_clock.place_forget()
+
+                    self.background_label.place(x = 0, y = 0, relwidth = 1, relheight = 1)      
+                    self.title_widget.place(relx = 0.5, rely = 0.20, anchor = "center")
+                    self.rectangle.place(relx = 0.5, rely = 0.4, anchor = "center")
+                    self.rectangle_variable.place(relx = 0, rely = 0)
+                    self.instruction_widget.place(relx = 0.5, rely = 0.65, anchor = "center")
                     self.iteration_start_time = time.time()
 
                 self.rectangle_update()
-            
-            self.call_identifier = self.master.after(20, self.move_rectangle)
+                self.call_identifier = self.master.after(20, self.move_rectangle)
 
     def start_pvt(self, event = None):
         self.experimentTimestamps.add_entry("breathing_end", time.perf_counter())
@@ -610,7 +645,6 @@ class myFirstGUI:
         self.instruction_widget.place(relx = 0.5, rely = 0.5, anchor = "center")
 
         self.tapping_ini_time = time.perf_counter()
-
 
     def tap_detected(self, event = None):
         self.experimentTimestamps.add_entry("tapping_" + str(self.tap_counter), time.perf_counter())
