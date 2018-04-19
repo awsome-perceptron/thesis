@@ -105,10 +105,12 @@ class myFirstGUI:
         #call meque no botãthod that will start iterative updates
         self.master.bind("<d>", self.delete_this) #just for debug
         
-        
+        self.remaining_time.set("04:00")
+        self.old_seconds = 0
         self.relaxation_widget.place(relx = 0.5, rely = 0.40, anchor = "center")
         self.relaxation_widget2.place(relx = 0.5, rely = 0.65, anchor = "center")
-        
+        self.countdown_clock.place(relx = 0.50, rely = 0.80, anchor = "center")
+
         self.move_rectangle()
 
 
@@ -213,23 +215,25 @@ class myFirstGUI:
     def layout_baseline(self):
         now = time.time()
         seconds = int(4*60 - (now - self.initial_time))
-        
-        #clear layout
-        self.title_widget.place_forget()
-        self.relaxation_widget.place_forget()
-        self.relaxation_widget2.place_forget()
-        self.countdown_clock.place_forget()
-        self.background_label.place_forget()
 
-        self.remaining_time.set(repr(int(seconds/60)) + ":" + repr(seconds % 60))
+        if seconds != self.old_seconds:        
+            #clear layout
+            self.background_label.place_forget()
+            self.title_widget.place_forget()
+            self.relaxation_widget.place_forget()
+            self.relaxation_widget2.place_forget()
+            self.countdown_clock.place_forget()
 
-        #set layout
-        self.background_label.place(x = 0, y = 0, relwidth = 1, relheight = 1)      
-        self.title_widget.place(relx = 0.5, rely = 0.20, anchor = "center")
-        self.relaxation_widget.place(relx = 0.5, rely = 0.40, anchor = "center")
-        self.relaxation_widget2.place(relx = 0.5, rely = 0.65, anchor = "center")
-        self.countdown_clock.place(relx = 0.5, rely = 0.80, anchor = "center")
+            self.remaining_time.set(repr(int(seconds/60)) + ":" + repr(seconds % 60))
 
+            #set layout
+            self.background_label.place(x = 0, y = 0, relwidth = 1, relheight = 1)      
+            self.title_widget.place(relx = 0.5, rely = 0.20, anchor = "center")
+            self.relaxation_widget.place(relx = 0.5, rely = 0.40, anchor = "center")
+            self.relaxation_widget2.place(relx = 0.5, rely = 0.65, anchor = "center")
+            self.countdown_clock.place(relx = 0.5, rely = 0.80, anchor = "center")
+
+        self.old_seconds = seconds
 
     def delete_this(self, event = None):
         #this is just to debug, to skip the base line faster. after pressing the button <d> the baseline ends in 20 seconds, and then deep breathing starts
@@ -278,6 +282,7 @@ class myFirstGUI:
         self.relaxation_widget.place_forget()
         self.relaxation_widget2.place_forget()
         self.instruction_widget.place_forget()
+        self.countdown_clock.place_forget()
         self.forget_common_widgets()
 
         #set new layout
@@ -488,7 +493,7 @@ class myFirstGUI:
 
         self.title_string.set("Transcrição de texto")
 
-        self.transcription_text = "A tendência que leva os portugueses a terem cada vez mais filhos fora do casamento não é recente e foi nesta terça-feira quantificada pelo Eurostat: Portugal é um dos oito estados-membros da União Europeia onde mais de metade dos bebés nasceram fora do casamento: 52,8%, em 2016. Segundo o gabinete de estatísticas da União Europeia (UE), naquele ano a França encabeçou a lista ao somar 59,7% de crianças nascidas fora do casamento. Seguiram-se a Bulgária e a Eslovénia, com 58,6% cada, a Estónia, com 56,1%, a Suécia (54,9%) e a Dinamarca (54,0%). \n\n"
+        self.transcription_text = "A tendência que leva os portugueses a terem cada vez mais filhos fora do casamento não é recente e foi nesta terça-feira quantificada pelo Eurostat: Portugal é um dos oito estados-membros da União Europeia onde mais de metade dos bebés nasceram fora do casamento: 52,8%, em 2016. Segundo o gabinete de estatísticas da União Europeia (UE), naquele ano a França encabeçou a lista ao somar 59,7% de crianças nascidas fora do casamento. \n\n"
         self.transcription_widget = Label(self.background_label, text = self.transcription_text, font = ("Helvetica", 18), foreground = "#ffffff", background = self.background, wraplength=850)
         self.instruction_string.set("")
 
