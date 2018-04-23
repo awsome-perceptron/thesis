@@ -70,7 +70,7 @@ class myFirstGUI:
         self.master.bind("<s>", self.start_pvt)
 
         #variables that define the interval between consecutive breathings and experiment duration
-        self.total_duration = 6 * 60 #total time of 6 minutes, expressed in seconds
+        self.total_duration = (5 * 60) + 20 #total time of 6 minutes, expressed in seconds
         self.breathing_interval = 5 #means that patient should inspire for 5 seconds, and expire for 5 seconds. 10 seconds total breathing intervals
 
         self.forget_common_widgets()
