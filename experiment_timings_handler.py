@@ -33,7 +33,6 @@ class syncObject:
         #stores begin and end time for each experiment (relative to the computer)
         self.experiments_timings = {}
 
-        
         #stores begin and end index for each experiment for every data type
         self.experiments_indexes = {}
         

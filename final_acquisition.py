@@ -5,6 +5,7 @@ from datetime import datetime
 import time
 import json
 import random
+import webbrowser
 
 class myFirstGUI:
     def __init__(self, master):
@@ -746,12 +747,20 @@ class myFirstGUI:
         filename = filename.replace(" ", "_")
         filename = filename.replace(":", "-")
         filename = filename.replace(".", "-")
-    
 
+        filename = "C:\\Users\\Naim\\Desktop\\Tese\\Programming\\New session\\" + filename
+    
         print("Name of file %s", filename)
         
         with open(filename + '.json', "w") as fp:
             json.dump(self.experimentTimestamps.stamp_dict, fp)
+
+        url1 = "https://www.empatica.com/connect/sessions.php"
+        url2 = "https://docs.google.com/spreadsheets/d/1W-CFYHgplYYcA-8EqjamoU3YodBp0r2lXI6OfmJuREs/edit#gid=0"
+        
+        webbrowser.open_new_tab(url2)
+        webbrowser.open_new_tab(url1)
+        
 
     def place_common_widgets(self):
         self.background_label.place(x = 0, y = 0, relwidth = 1, relheight = 1)
