@@ -99,7 +99,6 @@ class syncObject:
         self.add_time_interval('physical_3', 't122', 't123')
         self.add_time_interval('physical_4', 't123', 't13')
          
-
     def insert_reaction_times(self):
         #store the reaction times that were measured by the computer
         self.experiments_timings['reaction_0']['measure'] = self.time_measures['reaction_0']
@@ -316,6 +315,7 @@ def plot_complete_data(sessionObj):
         counter += 1
 
     plt.show()
+
 def show():
     plt.show()
 

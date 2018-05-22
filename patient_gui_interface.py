@@ -86,6 +86,14 @@ class DatabaseObject:
 
         return all_rows
 
+    def query_patient_experiments(self, patient_id):
+        cursor = self.db.cursor()
+        sql = '''SELECT number FROM session WHERE patient_id = ?'''
+        cursor.execute(sql, (patient_id,))
+        all_rows = cursor.fetchall()
+
+        return all_rows
+
     def drop_all_tables(self):
         self.drop_table("patient")
         self.drop_table("session")
@@ -285,22 +293,25 @@ class ExperimentWindow:
         self.db_obj.display_sessions()
 
 
+if __name__ == "__main__":
+    db_obj = DatabaseObject()
+
+    db_obj.create_patient_table()
+    db_obj.create_session_table()
+
+
+    db_obj.display_patients()
+    db_obj.display_sessions()
+
+    #USER INTERFACE
+    root = Tk()
+
+    window = MainWindow(root, db_obj)
+
+    root.mainloop()
+    
 #MAIN - DB CREATION
-db_obj = DatabaseObject()
 
-db_obj.create_patient_table()
-db_obj.create_session_table()
-
-
-db_obj.display_patients()
-db_obj.display_sessions()
-
-#USER INTERFACE
-root = Tk()
-
-window = MainWindow(root, db_obj)
-
-root.mainloop()
 
 
 
