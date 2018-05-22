@@ -13,6 +13,25 @@ import matplotlib.pyplot as plt
 #                 2) processes the json file to calculate the respective indexes that separate the data according to the part of the experiment
 #Note: the different experiment parts are: breathing, reaction_time, signature, tma, tmb and physical
 
+def get_files_name(experiment_folder):
+        (e4_file, json_file) = (None, None)
+
+        for file in os.listdir(experiment_folder):
+            if file.endswith(".zip"):
+                e4_file = file
+            elif file.endswith(".json"):
+                if "correcao" not in file:
+                    json_file = file
+
+        if e4_file == None or json_file == None:
+            print("Error: There is no E4 or JSON file for patient " + self.patient_id + " in experiment " + repr(self.experiment_number))
+            return (None, None)
+            
+        if len(os.listdir(experiment_folder)) < 4: #Usually there are 2 files, but it's possible to have 3 if a correction to the experiment was needed
+            zip = zipfile.ZipFile(experiment_folder + "\\" + e4_file, 'r')
+            zip.extractall(experiment_folder)
+
+        return (e4_file, json_file)
 class syncObject:
     #class variables
     #SAMPLE_RATES = {'ACT': 32, 'BVP': 64, 'EDA': 4, 'TEMP': 4} #NEED TO ADD IBI AND HR, BUT FIRST NEED TO UNDERSTAND IT BETTER

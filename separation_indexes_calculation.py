@@ -26,6 +26,7 @@ SIGNAL_LIST = ['ACC', 'BVP', 'EDA', 'HR', 'IBI', 'TEMP'] #IBI is odd
 SAMPLE_RATES = {'ACC': 32, 'BVP': 64, 'EDA': 4, 'TEMP': 4, 'HR': 1}
 
 def unzip_e4_files(complete_folder):
+    #SHOULD NOT BE USED
     e4_file = None
     json_file = None
 
@@ -45,6 +46,26 @@ def unzip_e4_files(complete_folder):
 
     return (e4_file, json_file)
 
+def get_files_name(experiment_folder):
+        (e4_file, json_file) = (None, None)
+
+        for file in os.listdir(experiment_folder):
+            if file.endswith(".zip"):
+                e4_file = file
+            elif file.endswith(".json"):
+                if "correcao" not in file:
+                    json_file = file
+
+        if e4_file == None or json_file == None:
+            print("Error: There is no E4 or JSON file for patient " + self.patient_id + " in experiment " + repr(self.experiment_number))
+            return (None, None)
+            
+        if len(os.listdir(experiment_folder)) < 4: #Usually there are 2 files, but it's possible to have 3 if a correction to the experiment was needed
+            zip = zipfile.ZipFile(experiment_folder + "\\" + e4_file, 'r')
+            zip.extractall(experiment_folder)
+
+        return (e4_file, json_file)
+        
 class timingsParser:
     def __init__(self, complete_folder, json_filename, empaticaObject):
         self.json_file = complete_folder + "\\" + json_filename
@@ -193,13 +214,13 @@ class empaticaParser:
             print("Warning: E4 event file with 0 events!")
             return None, None
 
-        first_line = lines.pop()
+        first_line = lines.pop(0)
         first_line = first_line.replace('\n', '')
         
         if number_lines == 1:
             return (float(first_line), None)
         elif number_lines == 2:
-            second_line = lines.pop()
+            second_line = lines.pop(0)
             second_line = second_line.replace('\n', '')
             return (float(first_line), float(second_line))
         else:
@@ -280,11 +301,11 @@ class empaticaParser:
     
 if __name__ == "__main__":
     patient_id = "D1\\"
-    experiment_number = "2"
+    experiment_number = "1"
     base_folder = "C:\\Users\\Naim\\Desktop\\Tese\\Programming\\Data\\"
     complete_folder = base_folder + patient_id + experiment_number
 
-    (e4_file, json_file) = unzip_e4_files(complete_folder)
+    (e4_file, json_file) = get_files_name(complete_folder)
 
     empaticaObject = empaticaParser(complete_folder, e4_file)
 

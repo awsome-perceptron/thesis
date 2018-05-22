@@ -93,6 +93,17 @@ class DatabaseObject:
         all_rows = cursor.fetchall()
 
         return all_rows
+        
+    def query_number_experiments(self, patient_id):
+        cursor = self.db.cursor()
+        sql = '''SELECT MAX(number) FROM session WHERE patient_id = ?'''
+        cursor.execute(sql, (patient_id,))
+
+        result = cursor.fetchone()[0]
+        if result:
+            return int(result)
+        else:
+            return 0
 
     def drop_all_tables(self):
         self.drop_table("patient")
