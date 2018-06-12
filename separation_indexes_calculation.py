@@ -5,6 +5,11 @@ import json
 import numpy as np
 import pandas as pd
 from math import ceil
+import datetime
+import time
+import sys
+import matplotlib.pyplot as plt
+import copy
 
 #Script: Processes the timings (json) and calculates indexes for each exercise of a session
 #List of exercises: breathing, pvt, signature, transcription, drawing, tma, tmb, tapping, physical
@@ -21,9 +26,14 @@ TEMP = "/TEMP.csv"
 SESSION_FILES = ["ACC.csv", "BVP.csv", "EDA.csv", "HR.csv", "IBI.csv", "TEMP.csv"]
 
 EXERCISE_LIST = ['breathing', 'pvt', 'signature', 'transcription', 'drawing', 'tma', 'tmb', 'tapping', 'physical']
+
 SIGNAL_LIST = ['ACC', 'BVP', 'EDA', 'HR', 'IBI', 'TEMP'] #IBI is odd
 
 SAMPLE_RATES = {'ACC': 32, 'BVP': 64, 'EDA': 4, 'TEMP': 4, 'HR': 1}
+
+RELEVANT_SIGNALS = {"breathing": ["BVP",], "pvt": ["HR",], "signature": ["ACC",], "transcription": ["ACC",], "drawing": ["ACC",], "tma": ["ACC",], "tmb": ["ACC",],  "tapping": ["HR",], "physical": ["ACC",]}
+
+BASE_FOLDER =  "C:\\Users\\Naim\\Desktop\\Tese\\Programming\\Data\\"
 
 def unzip_e4_files(complete_folder):
     #SHOULD NOT BE USED
@@ -53,7 +63,7 @@ def get_files_name(experiment_folder):
             if file.endswith(".zip"):
                 e4_file = file
             elif file.endswith(".json"):
-                if "correcao" not in file:
+                if "correcao" not in file and "panas" not in file:
                     json_file = file
 
         if e4_file == None or json_file == None:
@@ -81,11 +91,12 @@ class timingsParser:
         self.e4_signal_rates = empaticaObject.e4_signal_rates
         
         #Contains start and end for each exercise. Measured relative to the variable self.computer_reference
-        self.exercise_timings = {}
-        self.build_exercise_timings()
+        self.exercise_timings = self.build_exercise_timings()
+        self.exercise_duration = self.build_exercises_duration()
 
         self.sub_exercise_timings = {}
         self.build_sub_exercise_timings()
+        #self.sub_exercise_duration = self.build_sub_exercise_duration() DEVELOP THIS LATER
 
         #tapping time series + reaction time measures
         self.tapping_total = self.timings['tapping_total']
@@ -104,15 +115,25 @@ class timingsParser:
         self.calculate_indexes(self.sub_exercise_timings, self.sub_exercise_indexes)
 
     def build_exercise_timings(self):
+        timings_dictionary = {}
         for exercise in EXERCISE_LIST:
-            self.exercise_timings[exercise] = {}
+            timings_dictionary[exercise] = {}
             if exercise == 'drawing': #Because of a bug when generating the JSON input file for activity drawing
-                self.exercise_timings[exercise]['begin'] = self.timings[exercise + "_begin_0"] - self.computer_reference
-                self.exercise_timings[exercise]['end'] = self.timings[exercise + "_end"] - self.computer_reference
+                timings_dictionary[exercise]['begin'] = self.timings[exercise + "_begin_0"] - self.computer_reference
+                timings_dictionary[exercise]['end'] = self.timings[exercise + "_end"] - self.computer_reference
             else:
-                self.exercise_timings[exercise]['begin'] = self.timings[exercise + "_begin"] - self.computer_reference
-                self.exercise_timings[exercise]['end'] = self.timings[exercise + "_end"] - self.computer_reference
+                timings_dictionary[exercise]['begin'] = self.timings[exercise + "_begin"] - self.computer_reference
+                timings_dictionary[exercise]['end'] = self.timings[exercise + "_end"] - self.computer_reference
 
+        return timings_dictionary
+
+    def build_exercises_duration(self):
+        duration_dictionary = {}
+        for exercise in EXERCISE_LIST:
+            duration_dictionary[exercise] = self.exercise_timings[exercise]["end"] - self.exercise_timings[exercise]["begin"]
+        
+        return duration_dictionary
+    
     def build_sub_exercise_timings(self):
         relevant_exercises = {'pvt': 5, 'signature': 5, 'drawing': 3}
 
@@ -182,6 +203,7 @@ class timingsParser:
 
         return (start_index, end_index)
 
+
 class empaticaParser:
     def __init__(self, complete_folder, e4_filename):
         self.complete_folder = complete_folder
@@ -203,6 +225,12 @@ class empaticaParser:
         self.ibi = self.parse_file("IBI", 2, ['t', 'd'])
 
         self.data = {'ACC': self.acc, 'BVP':  self.bvp, 'EDA': self.eda, 'HR': self.hr, 'TEMP': self.temp, 'IBI': self.ibi}
+        
+        self.actigraphy_detrended = self.data["ACC"].copy(deep = True)
+        self.data_detrended = {'ACC': self.actigraphy_detrended, 'BVP':  self.bvp, 'EDA': self.eda, 'HR': self.hr, 'TEMP': self.temp, 'IBI': self.ibi}
+
+        #Will be filled when method for detrend is called
+        self.actigraphy_means = {}
 
     def parse_events_file(self):
         with open(self.complete_folder + TAGS, 'r') as raw:
@@ -298,10 +326,290 @@ class empaticaParser:
             data_as_float[i] = np.asarray(lines[i], dtype = float)
 
         return pd.DataFrame(data_as_float, columns = cols)
+   
+    def actigraphy_task_detrend(self, task_name, start_index, end_index):
+        mean_vector = np.zeros(3)
+
+        start_index = start_index
+        end_index = end_index
+
+        if start_index > len(self.actigraphy_detrended) or end_index > len(self.actigraphy_detrended):
+            raise dataSlicingException("Indexes bigger than original data", task_name, "ACC", start_index, end_index, "Size: " + repr(len(self.actigraphy_detrended)))
+                    
+        data_slice = self.actigraphy_detrended[start_index:end_index]
+        length = len(data_slice)
+        
+        for i, axis in enumerate(self.actigraphy_detrended):
+            mean_vector[i] = data_slice[axis].sum()/length
+            self.actigraphy_means[task_name] = mean_vector
+            self.actigraphy_detrended[axis][start_index:end_index] = self.actigraphy_detrended[axis][start_index:end_index] - mean_vector[i]
+
+    def build_actigraphy_magnitude(self):
+        data = self.actigraphy_detrended
+        self.actigraphy_magnitude = np.sqrt(data['X']**2 + data['Y']**2 + data['Z']**2)
     
+
+class panasParser:
+    def __init__(self, complete_folder):
+        self.folder = complete_folder
+        self.panas_file= self.folder + "\\panas_data.json"
+        self.panas_series = pd.read_json(self.panas_file, typ = "series")
+
+class completeSession:
+    def __init__(self, empaticaObj, timingsObj, panasObj):
+        self.empaticaObject = empaticaObj
+        self.timingsObject = timingsObj
+        self.panasObject = panasObj
+
+        self.existing_tasks = []
+
+        self.detrend_actigraphy(self.timingsObject.exercise_indexes, "task_detrend")
+        self.pauses_indexes = self.between_tasks()
+        self.detrend_actigraphy(self.pauses_indexes, "not_task_detrend")
+
+        self.empaticaObject.build_actigraphy_magnitude()
+        self.tasks_features_dictionary = self.build_feature_objects()
+
+    def detrend_actigraphy(self, input_dictionary, mode):
+        #if mode == task_detrend -> store mean_array
+        means_dictionary = {}
+
+        for task in input_dictionary.keys():
+            task_indexes = input_dictionary[task]
+            try:
+                start_index = task_indexes["ACC"]["start_index"]
+                end_index = task_indexes["ACC"]["end_index"]
+                #print("----------------------------")
+                #print("\n Before Detrending: {}".format(self.empaticaObject.actigraphy_detrended[start_index:end_index].head(3)))
+
+                mean_array = self.empaticaObject.actigraphy_task_detrend(task, start_index, end_index)
+                #print("Task: {} - Mean Array: {}".format(task, mean_array))
+
+                #print("After Detrending: {}".format(self.empaticaObject.actigraphy_detrended[start_index:end_index].head(3)))
+
+                if mode == "task_detrend":
+                    self.existing_tasks.append(task)
+                
+            except dataSlicingException as d:
+                #missing some data
+                print("WARNING - MISSING SOME DATA")
+                print(d.args)
+            except:
+                #unknown errors
+                print("Unexpected error:", sys.exc_info()[0])
+                raise
+    
+    def between_tasks(self):
+        #generate dictionary, call empatica method
+        new_dictionary = {}
+
+        #deep copy of empatica's dictionary
+        exercise_indexes = copy.deepcopy(self.timingsObject.exercise_indexes)
+
+        #Setup in the beggining
+        old_task = "beggining"
+        exercise_indexes[old_task] = {}
+        exercise_indexes[old_task]["ACC"] = {}
+        exercise_indexes[old_task]["ACC"]["end_index"] = 0  
+        
+        for task in self.timingsObject.exercise_indexes.keys():
+            key = old_task + "_" + task
+            new_dictionary[key] = {}
+            new_dictionary[key]["ACC"] = {'start_index': exercise_indexes[old_task]["ACC"]["end_index"], 'end_index': exercise_indexes[task]["ACC"]["start_index"]}
+            old_task = task
+
+        #Setup in the end
+        new_dictionary["physical_end"] = {}
+        new_dictionary["physical_end"]["ACC"] = {"start_index": exercise_indexes["physical"]["ACC"]["end_index"], "end_index": len(self.empaticaObject.actigraphy_detrended)}
+    
+
+        return new_dictionary
+
+    def build_feature_objects(self):
+        feature_objects_dictionary = {}
+        for task in self.existing_tasks:
+            timings = self.timingsObject.exercise_timings[task]
+            indexes = self.timingsObject.exercise_indexes[task]
+            acc_start_index = indexes["ACC"]["start_index"]
+            acc_end_index = indexes["ACC"]["end_index"]
+
+            task_actigraphy_detrended = self.empaticaObject.data_detrended["ACC"][acc_start_index:acc_end_index]
+            duration = self.timingsObject.exercise_duration[task]
+
+            feature_objects_dictionary[task] = taskFeatures(task, timings, indexes, duration, task_actigraphy_detrended, self.empaticaObject.actigraphy_means[task])
+        
+        return feature_objects_dictionary
+
+
+class taskFeatures:
+    def __init__(self, task_name, task_timings, signals_indexes, duration, task_actigraphy_detrended, mean_actigraphy):
+        #Note: task_data is not being used right not now, but could be added to this class constructor, if necessary
+        self.task_name = task_name
+        self.timings = task_timings
+        self.signal_indexes = signals_indexes
+        self.duration = duration
+        
+        self.actigraphy_features = actigraphyFeatures(task_actigraphy_detrended, mean_actigraphy)
+
+
+class actigraphyFeatures:
+    def __init__(self, task_actigraphy_detrended, task_mean_actigraphy):
+        self.acc_detrended = task_actigraphy_detrended
+        self.actigraphy_magnitude = self.calculate_magnitude()
+
+        #self.mean_array = task_mean_actigraphy
+        #self.mean = self.mean()
+
+        #self.variance = self.sample_variance()
+        #self.standard_deviation = self.standard_deviation()
+        
+        #self.feature_description = self.build_feature_description()
+    
+    def calculate_magnitude(self):
+        return np.sqrt(self.acc_detrended['X']**2 + self.acc_detrended['Y']**2 + self.acc_detrended['Z']**2)
+    
+    def mean(self):
+        #Almost all means are equal
+        return np.sqrt(np.sum(np.square(self.mean_array)))/3
+
+    def sample_variance(self):
+
+        #return np.sum(self.actigraphy_magnitude
+        pass    
+    
+    def standard_deviation(self):
+        return np.sqrt(self.sample_variance)
+
+    def build_feature_description(self):
+        description = {}
+        
+        #Mean
+        description['mean'] = {'X': self.mean_array[0], 'Y': self.mean_array[1], 'Z': self.mean_array[0]}
+
+        return description
+    
+    def print_feature_description(self, task_name):
+        print(" --- Actigraphy Feature Description - Task: ", task_name)
+        for key in self.feature_description.keys():
+            if type(self.feature_description[key]) is dict:
+                print("-> Listing features related to {}".format(key))
+                for name in self.feature_description[key]:
+                    print("     {} : {}".format(name, self.feature_description[key][name]))
+
+            else:
+                print("{} : {}".format(key, self.feature_description[key]))
+        
+
+class unitTesting:
+    def __init__(self, sessionObject):
+        self.sessionObject = sessionObject
+    
+    def detrended_actigraphy(self):
+        print("-------------------------  UNIT TESTING: Actigraphy Detrended Signal  -----------------------")
+        
+        original = self.sessionObject.empaticaObject.data["ACC"]
+        detrended = self.sessionObject.empaticaObject.data_detrended["ACC"]
+
+        counter = 0
+        ini_time = time.perf_counter()
+
+        for i in range(len(original)):
+            for axis in detrended:
+                if detrended[axis][i] != original[axis][i]:
+                    counter = counter + 1
+        
+        end_time = time.perf_counter()
+
+        print("Actigraphy detrending - Time to run: ", end_time - ini_time)
+        print("Original and detrended signal have ", counter, " different points!")
+
+    def actigraphy_means_dictionary(self):
+        print("-------------------------  UNIT TESTING: Actigraphy Means Dictionary  -----------------------")
+
+        dic = self.sessionObject.actigraphy_means
+
+        for task in dic.keys():
+            print("Task name: ", task, " - (ux, uy, uz) = (", dic[task][0], ",", dic[task][1], ",", dic[task][2], ")")
+    
+    def between_tasks_dictionary(self):
+        dictionary = self.sessionObject.pauses_indexes
+        exercise_indexes = self.sessionObject.timingsObject.exercise_indexes
+
+        print("\n Unit testing: between_tasks_dictionary()")
+
+        print(" -------------------- Original Tasks Indexes ---------------------- ")
+
+        for task in exercise_indexes.keys():
+            print("[ACC] - Task: {} - Start: {} - End: {}".format(task, exercise_indexes[task]["ACC"]["start_index"], exercise_indexes[task]["ACC"]["end_index"]))
+
+        print(" ------------------- Between Tasks Indexes ----------------------- ")
+        for key in dictionary.keys():
+            print("[ACC] - Key: {} - Start: {} - End: {}".format(key, dictionary[key]["ACC"]["start_index"], dictionary[key]["ACC"]["end_index"]))
+
+        print("\n")
+        
+    def detrended_actigraphy_means(self, exercise_indexes, pauses_indexes):
+        mean_array = np.zeros(3)
+        print("\n Unit testing: detrended_actigraphy_means(exercise_indexes, pause_indexes) -> should be approximately 0")
+
+        print(" ------------------- Average inside Tasks ---------------------- ")
+
+        for task in exercise_indexes.keys():
+            start = exercise_indexes[task]["ACC"]["start_index"]
+            end = exercise_indexes[task]["ACC"]["end_index"]
+            data = self.sessionObject.empaticaObject.actigraphy_detrended[start:end]
+            length = len(data)
+
+            for i, axis in enumerate(data):
+                mean_array[i] = data[axis].sum()/length
+
+            print("Task: {} - Mean Array: ({},{},{})".format(task, mean_array[0], mean_array[1], mean_array[2]))
+
+        print(" ----------------------- Average Inside Pauses -------------------- ")
+        
+        for task in pauses_indexes.keys():
+            start = pauses_indexes[task]["ACC"]["start_index"]
+            end = pauses_indexes[task]["ACC"]["end_index"]
+            data = self.sessionObject.empaticaObject.actigraphy_detrended[start:end]
+            length = len(data)
+
+            for i, axis in enumerate(data):
+                mean_array[i] = data[axis].sum()/length
+
+            print("Task: {} - Mean Array: ({},{},{})".format(task, mean_array[0], mean_array[1], mean_array[2]))
+
+
+#GENERAL METHODS TO BE DEVELOPED YET
+def matplot_experiment(patient_id, experiment_number, view_mode):
+
+    print("Write code to plot one experiment")
+
+def matplot_all_experiments(patient_id, view_mode):
+    
+    print("Write code to plot all experiments")
+
+def display_by_tasks(patient_id, experiment_number):
+
+    print("Write code to display by tasks")
+    
+def display_by_raw_signals(patient_id, experiment_number):
+
+    print("Write code to display by raw signals")
+
+class dataSlicingException(Exception):
+    #User defined Exception class
+    def __init__(self, message, exercise, signal, start_index, end_index, length):
+        self.message = message
+        self.exercise = exercise
+        self.signal = signal
+        self.start_index = start_index
+        self.end_index = end_index
+        self.length = length
+
+
 if __name__ == "__main__":
     patient_id = "D1\\"
-    experiment_number = "1"
+    experiment_number = "3"
     base_folder = "C:\\Users\\Naim\\Desktop\\Tese\\Programming\\Data\\"
     complete_folder = base_folder + patient_id + experiment_number
 
@@ -311,3 +619,21 @@ if __name__ == "__main__":
 
     timingsObject = timingsParser(complete_folder, json_file, empaticaObject)
 
+    panasObject = panasParser(complete_folder)
+
+    sessionObject = completeSession(empaticaObject, timingsObject, panasObject)
+
+    unitTests = unitTesting(sessionObject)
+    #unitTests.between_tasks_dictionary()
+    #unitTests.detrended_actigraphy_means(timingsObject.exercise_indexes, sessionObject.pauses_indexes)
+  
+    # print("Actigraphy magnitude")
+    # print(empaticaObject.actigraphy_magnitude)
+    # plt.figure()
+    # plt.plot(empaticaObject.actigraphy_magnitude)
+    # plt.show()
+    plt.figure()
+    plt.plot(empaticaObject.actigraphy_magnitude)
+    plt.show()
+
+    #Iterate through patient
