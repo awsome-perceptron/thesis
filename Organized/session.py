@@ -3,12 +3,12 @@ from timings import timingsParser
 from panas import panasParser
 from task import Task
 from unit_testing import unitTesting
+from visualization import DataVisualization
 
 import matplotlib.pyplot as plt
 import numpy as np
-
-from math import ceil
-
+import pandas as pd
+import time
 
 
 class completeSession:
@@ -17,13 +17,15 @@ class completeSession:
         self.patient_id = patient_id
         self.experiment_number = experiment_number
         self.folder = folder
-        self.experiment_number = experiment_number
 
         #Creation of  Empatica, Timings and Panas objects
         self.empaticaObject = empaticaParser(self.folder)
         self.timingsObject = timingsParser(self.folder, self.empaticaObject.event_list[0], self.empaticaObject.stamps_dictionary,
                                            self.empaticaObject.rates_dictionary, self.empaticaObject.actigraphy_length)
         self.panasObject = panasParser(self.folder)
+
+        # Session attributes
+        self.time_scale = self.empaticaObject.time_scale
 
         #Create list of existing tasks and pauses
         (self.existing_tasks_indexes, self.existing_pauses_indexes) = self.build_existing_lists(self.timingsObject.exercise_indexes, self.timingsObject.pause_indexes, self.empaticaObject.actigraphy_length)
@@ -33,9 +35,9 @@ class completeSession:
 
         #Creation of task objects list
         self.taskObjectsList = self.build_task_objects_list()
+        #self.taskObjectsList = self.testing_task_object()
 
     def build_existing_lists(self, task_indexes, pause_indexes, actigraphy_length):
-        #Calling: Try, Catch Exception dataSlicing and unexpected
         tasks_list = {}
         pauses_list = {}
         for task in task_indexes.keys():
@@ -54,36 +56,51 @@ class completeSession:
 
         return tasks_list, pauses_list
 
-    def fetch_task_data(self, task_indexes):
+    def fetch_task_data(self, task_name, task_indexes):
         task_data = {}
 
-        for signal in self.empaticaObject.data_detrended.keys():
+        for signal in self.empaticaObject.data_final.keys():
+            if signal == "ACC_MEANS":
+                task_data[signal] = self.empaticaObject.data_final[signal][task_name]
+                continue
             if signal == "IBI":
                 continue
-            elif signal == "ACC_MAG":
+            elif signal == "ACC_MAG" or signal == "ACC_DETRENDED" or signal == "ACC_RAW" or signal == "ACC_MAG_ALT":
                 start_index = task_indexes["ACC"]["start_index"]
                 end_index = task_indexes["ACC"]["end_index"]
             else:
                 start_index = task_indexes[signal]["start_index"]
                 end_index = task_indexes[signal]["end_index"]
 
-            task_data[signal] = self.empaticaObject.data_detrended[signal][start_index:end_index]
+            task_data[signal] = self.empaticaObject.data_final[signal][start_index:end_index]
 
         return task_data
 
     def build_task_objects_list(self):
         taskObjects_list = []
         for task_name in self.existing_tasks_indexes.keys():
-            task_data = self.fetch_task_data(self.existing_tasks_indexes[task_name])
+            task_data = self.fetch_task_data(task_name, self.existing_tasks_indexes[task_name])
             task_indexes = self.existing_tasks_indexes[task_name]
             task_duration = self.timingsObject.exercise_duration[task_name]
             taskObjects_list.append(Task(task_name, task_duration, task_data, task_indexes, self.empaticaObject.actigraphy_means_tasks[task_name]))
 
         return taskObjects_list
 
+    def testing_task_object(self):
+        taskObjects_list = []
+
+        task_name = "drawing"
+        task_data = self.fetch_task_data(task_name, self.existing_tasks_indexes[task_name])
+        task_indexes = self.existing_tasks_indexes[task_name]
+        task_duration = self.timingsObject.exercise_duration[task_name]
+        taskObjects_list.append(Task(task_name, task_duration, task_data, task_indexes,
+                                     self.empaticaObject.actigraphy_means_tasks[task_name]))
+
+        return taskObjects_list
 
 if __name__ == "__main__":
-    patient = "D1"
+    initial_time = time.perf_counter()
+    patient = "H1"
     experiment = "3"
     experiment_number = int(experiment)
     base_folder = "C:\\Users\\Naim\\Desktop\\Tese\\Programming\\Data\\"
@@ -93,5 +110,24 @@ if __name__ == "__main__":
 
     testing = unitTesting(sessionObject)
 
+    view = DataVisualization(sessionObject)
+    #view.task_actigraphy("multiple")
+    #view.actigraphy_magnitude_alternatives()
+    #view.autocorrelation_visualization("single")
+    #view.psd_visualization("multiple")
+    #view.ar_coefficients_visualization("multiple")
+    view.ar_model_predictions("multiple")
+
+
+    end_time = time.perf_counter()
+    print("Time to Run: {}".format(end_time - initial_time))
+    plt.show()
+
+    #Declaration of variables to be easier to work inside interpreter
+    task = sessionObject.taskObjectsList[0]
+    features = task.actigraphy_features
+    yule_walker = task.actigraphy_features.yule_walker
+
     #testing.print_head_of_tasks_data()
+
 

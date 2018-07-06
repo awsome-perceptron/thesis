@@ -15,15 +15,18 @@ class empaticaParser:
         (self.stamps_dictionary, self.rates_dictionary) = self.parse_stamps_and_rate()
 
         self.data_raw = self.build_raw_data()
+        self.time_scale = self.build_time_scales()
 
         self.actigraphy_length = len(self.data_raw["ACC"])
 
         # These structures will be filled uppon calling of method build_detrended_data()
         self.actigraphy_detrended = self.data_raw["ACC"].copy(deep = True)
         self.actigraphy_magnitude = None
+        self.alternative_actigraphy_magnitude = None
         self.data_detrended = {}
         self.actigraphy_means_tasks = {}
         self.actigraphy_means_pauses = {}
+        self.data_final = {}
 
     def parse_events_file(self, tag_filename):
         with open(self.folder + tag_filename, 'r') as raw:
@@ -162,8 +165,34 @@ class empaticaParser:
                 self.actigraphy_detrended[axis][start_index:end_index] = self.actigraphy_detrended[axis][start_index:end_index] - mean_vector[i]
 
         self.actigraphy_magnitude = np.sqrt(self.actigraphy_detrended['X']**2 + self.actigraphy_detrended['Y']**2 + self.actigraphy_detrended['Z']**2)
-        self.data_detrended = {'ACC': self.actigraphy_detrended, 'ACC_MAG': self.actigraphy_magnitude, 'BVP':  self.bvp_raw, 'EDA': self.eda_raw, 'HR': self.hr_raw, 'TEMP': self.temp_raw, 'IBI': self.ibi_raw}
+        self.build_data_structure()
 
+    def alternative_actigraphy_detrending(self):
+        # Method: Actigraphy data measures Earth's gravity. Calculate the magnitude of the vector and then subtract 1g
+        # In the units of actigraphy, a value of 64 represents an acceleration of 1g
+        # Problem: Using this method a lot of points are below zero, which shouldn't happen.
+        # This is due to rotational movements.
+
+        # Calculation of the actigraphy magnitude
+        self.alternative_actigraphy_magnitude = np.sqrt(self.actigraphy_raw['X']**2 + self.actigraphy_raw['Y']**2 + self.actigraphy_raw['Z']**2)
+        # Subtraction of gravity
+        self.alternative_actigraphy_magnitude = self.alternative_actigraphy_magnitude - 64
+
+    def build_data_structure(self):
+        self.alternative_actigraphy_detrending() # Stores data in attribute self.alternative_actigraphy_magnitude
+
+        self.data_final = {'ACC_RAW': self.actigraphy_raw, 'ACC_DETRENDED': self.actigraphy_detrended,
+                           'ACC_MAG_ALT': self.alternative_actigraphy_magnitude, 'ACC_MEANS': self.actigraphy_means_tasks,
+                           'ACC_MAG': self.actigraphy_magnitude,'BVP': self.bvp_raw, 'EDA': self.eda_raw,
+                           'HR': self.hr_raw, 'TEMP': self.temp_raw,
+                           'IBI': self.ibi_raw}
+
+    def build_time_scales(self):
+        time = {}
+        for signal in self.rates_dictionary.keys():
+            time[signal] = np.linspace(0, len(self.data_raw[signal])/self.rates_dictionary[signal], num = len(self.data_raw[signal]), endpoint = False)
+
+        return time
 
 if __name__ == "__main__":
     patient = "\\D1"
@@ -171,7 +200,6 @@ if __name__ == "__main__":
     base_folder = "C:\\Users\\Naim\\Desktop\\Tese\\Programming\\Data\\"
     complete_folder = base_folder + patient + experiment
 
-    empaticaObject = empatica(complete_folder)
+    empaticaObject = empaticaParser(complete_folder)
 
-    print(empaticaObject.event_list)
 

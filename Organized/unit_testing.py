@@ -5,6 +5,14 @@ class unitTesting:
     def __init__(self, sessionObject):
         self.sessionObject = sessionObject
 
+    def subtract_gravity_count_below_threshold(self, threshold):
+        print(" ----------------- Unit Testing: Actrigraphy Subtract Gravity Detrending - Number of Points Below Threshold ------------------")
+
+        data = self.sessionObject.empaticaObject.data_final["ACC_MAG_ALT"]
+        count = data[data < threshold].count()
+
+        print("Total number of points: {} | Threshold: {} | Number of points below threshold: {} | Percentage: {}". format(len(data), threshold, count, round((count/len(data))*100,2)))
+
     def actigraphy_detrended_different_points(self):
         print("-------------------------  UNIT TESTING: Actigraphy Detrended Different Points  -----------------------")
 

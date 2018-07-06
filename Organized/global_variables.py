@@ -3,7 +3,7 @@ import zipfile
 
 SIGNAL_LIST = ['ACC', 'BVP', 'EDA', 'HR', 'IBI', 'TEMP']
 EXERCISE_LIST = ['breathing', 'pvt', 'signature', 'transcription', 'drawing', 'tma', 'tmb', 'tapping', 'physical']
-
+BASE_FOLDER = "C:\\Users\\Naim\\Desktop\\Tese\\Programming\\Data"
 
 def get_zip_filename(folder):
     zip_filename = None
