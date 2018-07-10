@@ -15,7 +15,6 @@ class Task:
         self.task_indexes = task_indexes
 
         #Calculate features for each signal
-        print(" ------------------------------ ")
         self.actigraphy_features = ActigraphyFeatures(self)
         self.heart_features = HeartFeatures(self.task_data["BVP"], self.task_data["HR"])
         self.temperature_features = TemperatureFeatures(self.task_data["TEMP"])
@@ -187,7 +186,15 @@ class YuleWalker:
         self.mse_statsmodel = self.calculate_mean_squared_error(self.prediction_v_statsmodel)
 
         # 4) Calculate AIC
+        self.aic = self.akaike_information_criterion(len(self.magnitude_detrended), len(self.ar_coefficients), self.prediction_variance)
+        self.aic_statsmodel = self.akaike_information_criterion(len(self.magnitude_detrended), len(self.AR_model_fit.params) - 1, self.prediction_variance_statsmodel)
 
+        # 5) Check some error prediction properties
+        self.prediction_e_mean = self.calculate_prediction_error_mean(self.prediction_e)
+        self.prediction_e_statsmodel_mean = self.calculate_prediction_error_mean(self.prediction_e_statsmodel)
+
+        self.freq, self.dens = self.calculate_spectrum(self.ar_coefficients)
+        self.freq_statsmodel, self.dens_statsmodel = self.calculate_spectrum(self.AR_model_fit.params[1:])
 
         if print_important_variables:
             self.print_object_description()
@@ -244,10 +251,8 @@ class YuleWalker:
         if constant is not None:
             # AR Model with constant term ( For AR models from statsmodels package)
             offset = constant
-            print("Constant is not None!")
         else:
             # AR Model without constant term ( For AR models developed by our own)
-            print("Constant is None!")
             offset = 0
 
         # Reverse order of AR Coefficients for efficient computation
@@ -273,14 +278,29 @@ class YuleWalker:
 
         return mean_squared_error(self.magnitude_detrended, prediction_vector)
 
-    def akaike_information_criterion(self, total_samples, model_order, prediction_error_variance):
+    def akaike_information_criterion(self, n_obs, model_order, prediction_error_variance):
         # Log function from math package with one argument, returns the natural logarithm
-        return total_samples * log(prediction_error_variance) + 2 * model_order
+        return n_obs * log(prediction_error_variance) + 2 * model_order
+
+    def calculate_prediction_error_mean(self, prediction_error):
+        # Mean
+        mean = prediction_error.sum()/len(prediction_error)
+
+        return mean
+
+    def calculate_spectrum(self, ar_coefficients):
+        a =  np.concatenate([np.ones(1), -ar_coefficients])
+        w, h = signal.freqz(1, a)
+        h_db = 10*np.log10(2*(np.abs(h)/len(h)))
+
+        return w/np.pi, h_db
 
     def print_object_description(self):
         print(" --------------------------- Task: {} -------------------------------- ".format(self.master.name))
         print("Mean of Detrended Magnitude: {}".format(self.mean))
         print("Model Order - Mine: {} | Statsmodel: {}".format(len(self.ar_coefficients), len(self.AR_model_fit.params) - 1))
         print("Variance of prediction error - Mine: {} | Statsmodel: {}".format(self.prediction_variance, self.prediction_variance_statsmodel))
+        print("Mean of prediction error - Mine: {} | Statsmodel: {}".format(self.prediction_e_mean, self.prediction_e_statsmodel_mean))
         print("Mean Squared Error: Mine: {} | Statsmodel: {}".format(self.mse, self.mse_statsmodel))
-
+        print("AIC - Mine: {} | Statsmodel: {}".format(self.aic, self.aic_statsmodel))
+        print("\n")

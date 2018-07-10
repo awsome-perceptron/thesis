@@ -100,8 +100,8 @@ class DataVisualization:
             nr = ceil(len(self.sessionObject.existing_tasks_indexes)/2)
             nc = 2
 
-            plt.figure("Patient: {} | Experiment: {}".format(self.sessionObject.patient_id,
-                                                                   self.sessionObject.experiment_number))
+            plt.figure()
+
             plt.suptitle("AR Model Predictions")
             counter = 0
 
@@ -117,6 +117,7 @@ class DataVisualization:
                 plt.title(item['label'])
 
         elif option == "single":
+            plt.figure()
             fig, ax = plt.subplots()
 
             for item in data_list:
@@ -131,6 +132,51 @@ class DataVisualization:
             plt.ylabel("Value")
             plt.xlabel("Samples")
 
+    def power_spectral_density(self, option):
+        data_list = []
+
+        for taskObject in self.sessionObject.taskObjectsList:
+            yule_walker = taskObject.actigraphy_features.yule_walker
+            data_list.append({'label': taskObject.name, 'values': yule_walker.dens, 'values_statsmodel': yule_walker.dens_statsmodel,
+                              'periodogram': taskObject.actigraphy_features.P_dens,'horizontal_scale': yule_walker.freq})
+
+        if option == "single":
+            plt.figure()
+            fig, ax1 = plt.subplots()
+
+            for item in data_list:
+                #ax.plot(item['horizontal_scale'], item['periodogram'], label=item['label'] + "_periodogram")
+                #ax1.plot(item['horizontal_scale'], item['values'], label = item['label'] + "_mine")
+                ax1.plot(item['horizontal_scale'], item['values_statsmodel'], label = item['label'] + "_statsmodel")
+
+            ax1.legend()
+            ax1.set_title("PSD Estimation")
+            fig.canvas.set_window_title("Patient: {} | Experiment: {}".format(self.sessionObject.patient_id,
+                                                                              self.sessionObject.experiment_number))
+
+            plt.ylabel("PSD (dB/rad/sample)")
+            plt.xlabel(r'Normalized Frequency ($\times \pi$rad/sample)')
+
+        elif option == "multiple":
+            nr = ceil(len(self.sessionObject.existing_tasks_indexes) / 2)
+            nc = 2
+
+            plt.figure()
+            #plt.figure("Patient: {} | Experiment: {}".format(self.sessionObject.patient_id,
+            #                                                 self.sessionObject.experiment_number))
+            plt.suptitle("AR Model Predictions")
+            counter = 0
+
+            for item in data_list:
+                counter += 1
+                plt.subplot(nr, nc, counter)
+                #plt.plot(item['horizontal_scale'], item['periodogram'], label="periodogram")
+                #plt.plot(item['horizontal_scale'], item['values'], label="psd_mine")
+                plt.plot(item['horizontal_scale'], item['values_statsmodel'], label="psd_statsmodel")
+                plt.legend()
+                plt.ylabel("PSD (dB/rad/sample)")
+                plt.xlabel(r'Normalized Frequency ($\times \pi$rad/sample)')
+                plt.title(item['label'])
 
     def single_plot(self, title, y_label, x_label, data_list, mode):
         fig, ax = plt.subplots()

@@ -34,8 +34,8 @@ class completeSession:
         self.empaticaObject.build_detrended_data(self.existing_tasks_indexes, self.existing_pauses_indexes)
 
         #Creation of task objects list
-        self.taskObjectsList = self.build_task_objects_list()
-        #self.taskObjectsList = self.testing_task_object()
+        #self.taskObjectsList = self.build_task_objects_list()
+        self.taskObjectsList = self.testing_task_object()
 
     def build_existing_lists(self, task_indexes, pause_indexes, actigraphy_length):
         tasks_list = {}
@@ -117,6 +117,8 @@ if __name__ == "__main__":
     #view.psd_visualization("multiple")
     #view.ar_coefficients_visualization("multiple")
     view.ar_model_predictions("multiple")
+    view.power_spectral_density("multiple")
+    view.power_spectral_density("single")
 
 
     end_time = time.perf_counter()
