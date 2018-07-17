@@ -3,7 +3,7 @@ import zipfile
 
 SIGNAL_LIST = ['ACC', 'BVP', 'EDA', 'HR', 'IBI', 'TEMP']
 EXERCISE_LIST = ['breathing', 'pvt', 'signature', 'transcription', 'drawing', 'tma', 'tmb', 'tapping', 'physical']
-BASE_FOLDER = "C:\\Users\\Naim\\Desktop\\Tese\\Programming\\Data"
+BASE_FOLDER = "C:\\Users\\Naim\\Desktop\\Tese\\Programming\\Data\\"
 
 def get_zip_filename(folder):
     zip_filename = None
@@ -17,6 +17,7 @@ def get_zip_filename(folder):
         return None
 
     if len(os.listdir(folder)) < 4: #Usually there are 2 files, but it's possible to have 3 if a correction to the experiment was needed
+            print("Extracting at: ", folder)
             zipObj = zipfile.ZipFile(folder + "\\" + zip_filename, 'r')
             zipObj.extractall(folder)
     

@@ -1,10 +1,15 @@
 import matplotlib.pyplot as plt
 from math import ceil
 import numpy as np
+import global_variables as gv
+from session import completeSession
 
 class DataVisualization:
     def __init__(self, sessionObject):
         self.sessionObject = sessionObject
+
+    def task_data(self, option):
+        pass
 
     def task_actigraphy(self, option):
         title = "Visualization of Actigraphy Magnitude - Tasks"
@@ -75,16 +80,16 @@ class DataVisualization:
 
         for taskObject in self.sessionObject.taskObjectsList:
             # Insert value 0 at the beginning of ar_coefficients array to simulate a constant term
-            data_list.append({'label': taskObject.name + "_mine", 'values': np.insert(taskObject.actigraphy_features.yule_walker.ar_coefficients, 0, 0)})
+            #data_list.append({'label': taskObject.name + "_mine", 'values': np.insert(taskObject.actigraphy_features.yule_walker.ar_coefficients, 0, 0)})
             data_list.append({'label': taskObject.name + "_statsmodel", 'values': taskObject.actigraphy_features.yule_walker.AR_model_fit.params})
 
         if option == "multiple":
             nr = ceil(len(self.sessionObject.existing_tasks_indexes)/2)
             nc = 2
-            self.multiple_plot("AR Coefficients Visualization", nr, nc, "AR", "Index", data_list, "normal")
+            self.multiple_plot("AR Coefficients Visualization", nr, nc, "AR", "Index", data_list, "stem")
 
         elif option == "single":
-            self.single_plot("AR Coefficients Visualization", "AR", "Index", data_list, "normal")
+            self.single_plot("AR Coefficients Visualization", "AR", "Index", data_list, "stem")
 
     def ar_model_predictions(self, option):
         data_list = []
@@ -101,7 +106,6 @@ class DataVisualization:
             nc = 2
 
             plt.figure()
-
             plt.suptitle("AR Model Predictions")
             counter = 0
 
@@ -117,7 +121,6 @@ class DataVisualization:
                 plt.title(item['label'])
 
         elif option == "single":
-            plt.figure()
             fig, ax = plt.subplots()
 
             for item in data_list:
@@ -141,7 +144,6 @@ class DataVisualization:
                               'periodogram': taskObject.actigraphy_features.P_dens,'horizontal_scale': yule_walker.freq})
 
         if option == "single":
-            plt.figure()
             fig, ax1 = plt.subplots()
 
             for item in data_list:
@@ -158,7 +160,7 @@ class DataVisualization:
             plt.xlabel(r'Normalized Frequency ($\times \pi$rad/sample)')
 
         elif option == "multiple":
-            nr = ceil(len(self.sessionObject.existing_tasks_indexes) / 2)
+            nr = ceil(len(self.sessionObject.existing_tasks_indexes)/2)
             nc = 2
 
             plt.figure()
@@ -202,14 +204,13 @@ class DataVisualization:
 
         elif mode == "stem":
             for item in data_list:
-                ax.plot(item['values'],  label = item['label'])
+                ax.plot(item['values'], '.', label = item['label'])
 
             ax.legend()
             ax.set_title(title)
             fig.canvas.set_window_title("Patient: {} | Experiment: {}".format(self.sessionObject.patient_id, self.sessionObject.experiment_number))
             plt.ylabel(y_label)
             plt.xlabel(x_label)
-
 
     def multiple_plot(self, title, nr, nc, y_label, x_label, data_list, mode):
         plt.figure("Patient: {} | Experiment: {}".format(self.sessionObject.patient_id, self.sessionObject.experiment_number))
@@ -249,62 +250,79 @@ class DataVisualization:
                 plt.xlabel(x_label)
                 plt.title(item['label'])
 
-# class DataVisualization:
-#     def compare_actigraphy_magnitude_alternatives(self):
-#         data_list = []
-#         data_list.append({'label': "Actigraphy Magnitude", 'values': self.sessionObject.empaticaObject.data_final["ACC_MAG"]})
-#         data_list.append({'label': "Actigraphy Magnitude Alternative (Gravity)", 'values': self.sessionObject.empaticaObject.data_final["ACC_MAG_ALT"]})
-#
-#         fig, ax = plt.subplots()
-#         for item in data_list:
-#             ax.plot(item['values'], label = item['name'])
-#
-#         ax.legend()
-#         ax.set_title("Actigraphy Magnitude Comparison")
-#         plt.show()
-#
-#     def view_actigraphy_tasks_fft(self):
-#         number_rows = ceil(len(self.sessionObject.existing_tasks_indexes)/2)
-#         number_columns = 2
-#         counter = 0
-#
-#         plt.figure("Patiend: {} | Experiment: {} -- Actigraphy Spectral Magnitude Display".format(self.sessionObject.patient_id, self.sessionObject.experiment_number))
-#         for taskObject in self.sessionObject.taskObjectsList:
-#             counter += 1
-#             plt.subplot(number_rows, number_columns, counter)
-#             fft = taskObject.actigraphy_features.fft
-#             for key in fft.keys():
-#                 plt.loglog(fft[key]['freq_axis'], abs(fft[key]['values']), label = key)
-#             #plt.loglog(fft["original"]['freq_axis'], fft["original"]['values'], label = "original")
-#             plt.legend()
-#             plt.title(taskObject.name)
-#
-#         plt.show()
-#
-#     def view_autocorrelation_tasks(self, title, ):
-#         pass
-#
-#     def single_plot(self, title, data_list):
-#         fig, ax = plt.subplots()
-#
-#         for item in data_list:
-#             ax.plot(item('values'), label = item['label'])
-#
-#         ax.legend()
-#         ax.set_title(title)
-#         plt.show()
-#
-#     def multiple_plots(self, nr, nc, title, data_list):
-#         counter = 0
-#         plt.figure("Patient": {}
 
+class MultipleVisualization:
+    def __init__(self, sessionList):
+        self.sessionList = sessionList
+
+        self.structured_data = self.structure_data()
+
+    def structure_data(self):
+        # Returns a dictionary indexed by task names. Each entry has an array of Task Objects corresponding to the different experiments
+        all_sessions = dict()
+
+        for task in gv.EXERCISE_LIST:
+            data_list = []
+
+            for i in range(len(self.sessionList)):
+                if task in self.sessionList[i].taskObjectsDic.keys():
+                    data_list.append({'task_object': self.sessionList[i].taskObjectsDic[task], 'patient_id': self.sessionList[i].patient_id,
+                                      'experiment_number': self.sessionList[i].experiment_number, 'label': self.sessionList[i].label})
+                else:
+                    data_list.append({'task_object': None, 'experiment_number': self.sessionList[i].experiment_number})
+
+            all_sessions[task] = data_list
+
+        return all_sessions
+
+    def power_spectral_density(self):
+        data_object = dict()
+
+        for task in self.structured_data:
+            data_object[task] = []
+            task_list = self.structured_data[task]
+
+            for i in range(len(task_list)):
+                if task_list[i]["task_object"] is None:
+                    print("None detected")
+                else:
+                    task_obj = task_list[i]["task_object"]
+                    experiment = task_list[i]["experiment_number"]
+
+                    # Afterwards add label to data_list
+                    data_object[task].append({'density': task_obj.actigraphy_features.yule_walker.dens_statsmodel, 'freq': task_obj.actigraphy_features.yule_walker.freq_statsmodel,
+                                              'experiment_number': experiment, 'label': task_list[i]["label"]})
+
+        self.multiple_plot(data_object, "PSD Estimation", 5, 2, "dB/rad/sample", r'Normalized Frequency ($\times \pi$rad/sample)', 'density', 'freq')
+
+    def multiple_plot(self, data_object, title, nr, nc, y_label, x_label, y_tag, x_tag):
+        plt.figure()
+        plt.suptitle(title)
+        counter = 0
+
+        for task in data_object:
+            counter += 1
+            plt.subplot(nr, nc, counter)
+            for item in data_object[task]:
+                plt.plot(item[x_tag], item[y_tag], label = item["label"])
+
+            plt.legend()
+            plt.ylabel(y_label)
+            plt.xlabel(x_label)
+            plt.title(task)
 
 if __name__ == "__main__":
     patient = "D1"
-    experiment = "1"
-    experiment_number = int(experiment)
-    base_folder = "C:\\Users\\Naim\\Desktop\\Tese\\Programming\\Data\\"
-    complete_folder = base_folder + patient + "\\" + experiment
 
-    sessionObject = completeSession(patient, experiment_number, complete_folder)
-    view = DataVisualization(sessionObject)
+    sessionList = []
+    sessionList.append(completeSession(patient, 1))
+    print("First")
+    sessionList.append(completeSession(patient, 2))
+    print("Second")
+    sessionList.append(completeSession(patient, 3))
+    print("Third")
+
+    multiple_view = MultipleVisualization(sessionList)
+    structured_data = multiple_view.structured_data
+    multiple_view.power_spectral_density()
+    plt.show()

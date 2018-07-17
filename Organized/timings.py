@@ -49,6 +49,8 @@ class timingsParser:
 
         self.pause_indexes = self.build_pause_indexes()
 
+        self.experiment_label = self.build_experiment_label()
+
     def build_exercise_timings(self):
         timings_dictionary = {}
         for exercise in gv.EXERCISE_LIST:
@@ -162,6 +164,19 @@ class timingsParser:
         new_dictionary["physical_end"]["ACC"] = {"start_index": exercise_indexes["physical"]["ACC"]["end_index"], "end_index": self.actigraphy_length}
 
         return new_dictionary
+
+    def build_experiment_label(self):
+        stamp = self.experiment_timestamp.split(' ')
+        aux = stamp[1].split(':')
+        hours = int(aux[0])
+        minutes = int(aux[1])
+
+        if hours <= 12 and minutes < 50:
+            return "morning"
+        elif hours >= 14 and minutes >=50:
+            return "afternoon"
+        else:
+            return "lunch"
 
 if __name__ == "__main__":
     patient = "\\D1"

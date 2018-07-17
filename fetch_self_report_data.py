@@ -5,6 +5,7 @@ from oauth2client import file, client, tools
 import pandas as pd
 import numpy as np
 import os
+import datetime
 
 POSITIVE_AFFECT = ["Interessado", "Excitado", "Agradavelmente surpreendido", "Caloroso", "Entusiasmado", "Orgulhoso", "Encantado", "Inspirado", "Determinado", "Activo"]
 NEGATIVE_AFFECT = ["Perturbado", "Atormentado", "Culpado", "Assustado", "Repulsa", "Irritado", "Remorsos", "Nervoso", "Tremulo", "Amedrontado"]

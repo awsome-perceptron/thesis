@@ -39,6 +39,16 @@ class DatabaseObject:
         cursor.execute(sql)
         self.db.commit()
 
+    def delete_patient_records(self, p_id):
+        cursor = self.db.cursor()
+        sql = '''DELETE FROM session WHERE patient_id = ?'''
+        sql1 = '''DELETE FROM patient WHERE id = ?'''
+        cursor.execute(sql, (p_id,))
+        cursor.execute(sql1, (p_id,))
+        print("User " + p_id + " and entries deleted!")
+        self.db.commit()
+
+
     def insert_patient(self, p_id, p_name):
         p_epoch = int(time.time())
         cursor = self.db.cursor()
@@ -221,7 +231,7 @@ class ExperimentWindow:
         self.btn_list = []  # list to hold the button objects
 
         self.title_font = Font(family='Helvetica', size=26)
-        self.text_font = Font(family='Helvetica', size=16)
+        self.text_font = Font(family='Helvetica', size=10)
 
         self.frame = Frame(self.master)
 

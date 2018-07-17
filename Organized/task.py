@@ -154,7 +154,7 @@ class EdaFeatures:
 
 class YuleWalker:
     def __init__(self, master, magnitude_detrended, mean):
-        print_important_variables = True
+        print_important_variables = False
 
         self.master = master
         self.magnitude_detrended = magnitude_detrended
@@ -165,7 +165,7 @@ class YuleWalker:
         self.ar_coefficients = self.fitting(model_order = 20)
 
         # Fitting an AR Model using developed package from statsmodel
-        self.train_length = len(self.magnitude_detrended) - 200
+        self.train_length = len(self.magnitude_detrended)
         self.AR_model, self.AR_model_fit = self.autoregressive_statsmodel(self.train_length)
 
         # EVALUATION OF AR MODELS
@@ -240,7 +240,7 @@ class YuleWalker:
         self.testing_set = self.magnitude_detrended[training_length:]
 
         model = AR(self.training_set)
-        model_fit = model.fit(maxlag = 200, ic = 'aic')
+        model_fit = model.fit(maxlag = 50, ic = 'aic')
 
         return model, model_fit
 
@@ -289,7 +289,8 @@ class YuleWalker:
         return mean
 
     def calculate_spectrum(self, ar_coefficients):
-        a =  np.concatenate([np.ones(1), -ar_coefficients])
+        # Not sure why the expression for h_db is like that
+        a = np.concatenate([np.ones(1), -ar_coefficients])
         w, h = signal.freqz(1, a)
         h_db = 10*np.log10(2*(np.abs(h)/len(h)))
 
