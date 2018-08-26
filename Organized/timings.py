@@ -49,6 +49,16 @@ class timingsParser:
 
         self.pause_indexes = self.build_pause_indexes()
 
+        if self.check_if_wrong_task():
+            # If there are any wrong tasks
+            content = json.load(open(self.folder + "//wrong_task_correcao.json", 'r'))
+            wrong_task = content["wrong_task"]
+
+            print("DEBUG - Wrong Task: {}".format(wrong_task))
+            self.pause_indexes = self.build_pause_indexes(wrong_task)
+        else:
+            self.pause_indexes = self.build_pause_indexes()
+
         self.experiment_label = self.build_experiment_label()
 
     def build_exercise_timings(self):
@@ -140,7 +150,7 @@ class timingsParser:
 
         return (start_index, end_index)
 
-    def build_pause_indexes(self):
+    def build_pause_indexes(self, wrong_task = None):
         #generate dictionary between tasks
         new_dictionary = {}
 
@@ -151,17 +161,27 @@ class timingsParser:
         old_task = "beggining"
         exercise_indexes[old_task] = {}
         exercise_indexes[old_task]["ACC"] = {}
-        exercise_indexes[old_task]["ACC"]["end_index"] = 0  
-        
+        exercise_indexes[old_task]["ACC"]["end_index"] = 0
+
         for task in self.exercise_indexes.keys():
-            key = old_task + "_" + task
-            new_dictionary[key] = {}
-            new_dictionary[key]["ACC"] = {'start_index': exercise_indexes[old_task]["ACC"]["end_index"], 'end_index': exercise_indexes[task]["ACC"]["start_index"]}
-            old_task = task
+            if task == wrong_task:
+                continue
+            else:
+                key = old_task + "_" + task
+                new_dictionary[key] = {}
+                new_dictionary[key]["ACC"] = {'start_index': exercise_indexes[old_task]["ACC"]["end_index"], 'end_index': exercise_indexes[task]["ACC"]["start_index"]}
+                old_task = task
 
         #Setup in the end
-        new_dictionary["physical_end"] = {}
-        new_dictionary["physical_end"]["ACC"] = {"start_index": exercise_indexes["physical"]["ACC"]["end_index"], "end_index": self.actigraphy_length}
+        if wrong_task == None:
+            new_dictionary["physical_end"] = {}
+            new_dictionary["physical_end"]["ACC"] = {"start_index": exercise_indexes["physical"]["ACC"]["end_index"], "end_index": self.actigraphy_length}
+        else:
+            # When a mistake was made and a task was repeated in the end, perform the following corrections:
+            new_dictionary["physical_" + wrong_task] = {}
+            new_dictionary["physical_" + wrong_task]["ACC"] = {"start_index": exercise_indexes["physical"]["ACC"]["end_index"], "end_index":exercise_indexes[wrong_task]["ACC"]["start_index"]}
+            new_dictionary[wrong_task + "_end"] = {}
+            new_dictionary[wrong_task + "_end"]["ACC"] = {"start_index": exercise_indexes[wrong_task]["ACC"]["end_index"], "end_index": self.actigraphy_length}
 
         return new_dictionary
 
@@ -171,16 +191,23 @@ class timingsParser:
         hours = int(aux[0])
         minutes = int(aux[1])
 
-        if hours <= 12 and minutes < 50:
+        if hours <= 12:
             return "morning"
-        elif hours >= 14 and minutes >=50:
+        elif hours >= 14:
             return "afternoon"
         else:
             return "lunch"
 
+    def check_if_wrong_task(self):
+        for file in os.listdir(self.folder):
+            if "wrong_task_correcao.json" in file:
+                return True
+
+        return False
+
 if __name__ == "__main__":
-    patient = "\\D1"
-    experiment = "\\3"
+    patient = "\\D3"
+    experiment = "\\1"
     base_folder = "C:\\Users\\Naim\\Desktop\\Tese\\Programming\\Data\\"
     complete_folder = base_folder + patient + experiment
 

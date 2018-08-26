@@ -1,328 +1,269 @@
 import matplotlib.pyplot as plt
-from math import ceil
-import numpy as np
+import matplotlib.patches as mpatches
+from session import CompleteSession
 import global_variables as gv
-from session import completeSession
 
 class DataVisualization:
-    def __init__(self, sessionObject):
-        self.sessionObject = sessionObject
+    def __init__(self, session_list):
+        self.session_list = session_list
+        self.patient_id = self.session_list[0].patient_id
 
-    def task_data(self, option):
-        pass
+        self.number_sessions = len(self.session_list)
 
-    def task_actigraphy(self, option):
-        title = "Visualization of Actigraphy Magnitude - Tasks"
-
-        data_list = []
-
-        for taskObject in self.sessionObject.taskObjectsList:
-            data_list.append({'label': taskObject.name, 'values': taskObject.task_data["ACC_MAG"], 'indexes': taskObject.task_indexes, 'type': "ACC"})
-
-        if option == "single":
-            self.single_plot(title, "Magnitude", "Samples", data_list, "normal")
-        elif option == "multiple":
-            nr = ceil(len(self.sessionObject.existing_tasks_indexes)/2)
-            nc = 2
-
-            self.multiple_plot(title, nr, nc, "Magnitude", "Time", data_list, "normal")
+        if self.number_sessions == 1:
+            self.experiments = repr(self.session_list[0].experiment_number)
         else:
-            print("Data Visualization: task_actigraphy(option) - Unknown option")
+            self.experiments = repr(self.session_list[0].experiment_number) + "_" + repr(self.session_list[len(self.session_list) - 1].experiment_number)
 
-    def actigraphy_magnitude_alternatives(self):
-        title = "Visualization of Actigraphy Magnitude - Alternatives"
+    def raw_signals(self, analysis):
+        data_structure = {}
 
-        data_list = []
-        data_list.append({'label': "Original", 'values': self.sessionObject.empaticaObject.data_final["ACC_MAG"]})
-        data_list.append({'label': "Alternative", 'values': self.sessionObject.empaticaObject.data_final["ACC_MAG_ALT"]})
+        for signal in gv.SIGNAL_LIST:
+            data_element = []
+            for session in self.session_list:
+                if signal == "ACC":
+                    data_element.append({'value': session.empaticaObject.data_final["ACC_RAW"], 'experiment_number': session.experiment_number,
+                                         'period': session.label, 'y_label': gv.UNITS["ACC"], 'x_label': "Samples"})
+                else:
+                    data_element.append({'value': session.empaticaObject.data_final[signal], 'experiment_number': session.experiment_number,
+                                         'period': session.label, 'y_label': gv.UNITS[signal], 'x_label': "Samples"})
 
-        fig, ax = plt.subplots()
+            if signal == "ACC":
+                data_structure["ACC_RAW"] = data_element
+            else:
+                data_structure[signal] = data_element
 
-        for item in data_list:
-            ax.plot(item['values'], label = item['label'])
+        if analysis == "patient":
+            self.plot(data_structure, "Raw Signals", "experiment_number", 3, 2)
 
-        ax.legend()
-        ax.set_title(title)
-        fig.canvas.set_window_title("Patient: {} | Experiment: {}".format(self.sessionObject.patient_id, self.sessionObject.experiment_number))
-        plt.ylabel("Magnitude")
-        plt.xlabel("Samples")
+        elif analysis == "group":
+            self.plot_periods(data_structure, "Raw Signals", "period", 3, 2)
 
-    def autocorrelation_visualization(self, option):
-        data_list = []
+    def raw_detrended_signals(self, analysis):
+        data_structure = {}
 
-        for taskObject in self.sessionObject.taskObjectsList:
-            data_list.append({'label': taskObject.name, 'values': taskObject.actigraphy_features.autocorrelation})
+        for signal in gv.SIGNAL_LIST:
+            data_element = []
+            for session in self.session_list:
+                if signal == "ACC":
+                    data_element.append({'value': session.empaticaObject.data_final["ACC_DETRENDED"], 'experiment_number': session.experiment_number,
+                                         'period': session.label, 'y_label': gv.UNITS["ACC"], 'x_label': "Samples"})
+                else:
+                    data_element.append({'value': session.empaticaObject.data_final[signal], 'experiment_number': session.experiment_number,
+                                         'period': session.label, 'y_label': gv.UNITS[signal], 'x_label': "Samples"})
+            if signal == "ACC":
+                data_structure["ACC_DETRENDED"] = data_element
+            else:
+                data_structure[signal] = data_element
 
-        if option == "multiple":
-            nr = ceil(len(self.sessionObject.existing_tasks_indexes)/2)
-            nc = 2
-            self.multiple_plot("Autocorrelation Visualization", nr, nc, "AutoCorr", "Lag", data_list, "normal")
+        if analysis == "patient":
+            self.plot(data_structure, "Raw Detrended Signals", "experiment_number", 3, 2)
 
-        if option == "single":
-            self.single_plot("Autocorrelation Visualization", "AutoCorr", "Lag", data_list, "normal")
+        elif analysis == "group":
+            self.plot_periods(data_structure, "Raw Detrended Signals", "period", 3, 2)
 
-    def psd_visualization(self, option):
-        data_list = []
+    def raw_magnitude_signals(self, analysis):
+        data_structure = {}
 
-        for taskObject in self.sessionObject.taskObjectsList:
-            data_list.append({'label': taskObject.name, 'values': taskObject.actigraphy_features.P_dens, 'freq': taskObject.actigraphy_features.freq})
+        for signal in gv.SIGNAL_LIST:
+            data_element = []
+            for session in self.session_list:
+                if signal == "ACC":
+                    data_element.append({'value': session.empaticaObject.data_final["ACC_MAG"],
+                                         'experiment_number': session.experiment_number, 'period': session.label,
+                                         'y_label': gv.UNITS["ACC"], 'x_label': "Samples"})
+                else:
+                    data_element.append({'value': session.empaticaObject.data_final[signal],
+                                         'experiment_number': session.experiment_number, 'period': session.label,
+                                         'y_label': gv.UNITS[signal], 'x_label': "Samples"})
+            if signal == "ACC":
+                data_structure["ACC_MAG"] = data_element
+            else:
+                data_structure[signal] = data_element
 
-        if option == "multiple":
-            nr = ceil(len(self.sessionObject.existing_tasks_indexes)/2)
-            nc = 2
-            self.multiple_plot("PSD Visualization", nr, nc, "PSD", "Freq", data_list, "semilogy")
+        if analysis == "patient":
+            self.plot(data_structure, "Raw Magnitude Signals", "experiment_number", 3, 2)
 
-        elif option == "single":
-            self.single_plot("PSD Visualization", "PSD", "Freq", data_list, "semilogy")
+        elif analysis == "group":
+            self.plot_periods(data_structure, "Raw Magnitude Signals", "period", 3, 2)
 
-    def ar_coefficients_visualization(self, option):
-        data_list = []
-
-        for taskObject in self.sessionObject.taskObjectsList:
-            # Insert value 0 at the beginning of ar_coefficients array to simulate a constant term
-            #data_list.append({'label': taskObject.name + "_mine", 'values': np.insert(taskObject.actigraphy_features.yule_walker.ar_coefficients, 0, 0)})
-            data_list.append({'label': taskObject.name + "_statsmodel", 'values': taskObject.actigraphy_features.yule_walker.AR_model_fit.params})
-
-        if option == "multiple":
-            nr = ceil(len(self.sessionObject.existing_tasks_indexes)/2)
-            nc = 2
-            self.multiple_plot("AR Coefficients Visualization", nr, nc, "AR", "Index", data_list, "stem")
-
-        elif option == "single":
-            self.single_plot("AR Coefficients Visualization", "AR", "Index", data_list, "stem")
-
-    def ar_model_predictions(self, option):
-        data_list = []
-
-        for taskObject in self.sessionObject.taskObjectsList:
-            yule_walker = taskObject.actigraphy_features.yule_walker
-            n_points = len(taskObject.actigraphy_features.magnitude_detrended)
-            data_list.append({'label': taskObject.name, 'prediction' : yule_walker.prediction_v,
-                              'prediction_statsmodel': yule_walker.prediction_v_statsmodel, 'original': taskObject.actigraphy_features.magnitude_detrended,
-                              'horizontal_scale': np.linspace(0, n_points, num = n_points, endpoint = False) })
-
-        if option == "multiple":
-            nr = ceil(len(self.sessionObject.existing_tasks_indexes)/2)
-            nc = 2
-
-            plt.figure()
-            plt.suptitle("AR Model Predictions")
-            counter = 0
-
-            for item in data_list:
-                counter += 1
-                plt.subplot(nr, nc, counter)
-                plt.plot(item['horizontal_scale'], item['original'], label = "original")
-                plt.plot(item['horizontal_scale'], item['prediction'], label = "prediction_mine")
-                plt.plot(item['horizontal_scale'], item['prediction_statsmodel'], label = "prediction_statsmodel")
-                plt.legend()
-                plt.ylabel("ACC")
-                plt.xlabel("Samples")
-                plt.title(item['label'])
-
-        elif option == "single":
-            fig, ax = plt.subplots()
-
-            for item in data_list:
-                ax.plot(item['horizontal_scale'], item['original'], color = "yellow", label=item['label'] + "_original")
-                ax.plot(item['horizontal_scale'], item['prediction'], color = "blue", label = item['label'] + "_prediction")
-                ax.plot(item['horizontal_scale'], item['prediction_statsmodel'], color = "red", label = item['label'] + "_prediction_statsmodel")
-
-            ax.legend()
-            ax.set_title("AR Model Predictions")
-            fig.canvas.set_window_title("Patient: {} | Experiment: {}".format(self.sessionObject.patient_id,
-                                                                              self.sessionObject.experiment_number))
-            plt.ylabel("Value")
-            plt.xlabel("Samples")
-
-    def power_spectral_density(self, option):
-        data_list = []
-
-        for taskObject in self.sessionObject.taskObjectsList:
-            yule_walker = taskObject.actigraphy_features.yule_walker
-            data_list.append({'label': taskObject.name, 'values': yule_walker.dens, 'values_statsmodel': yule_walker.dens_statsmodel,
-                              'periodogram': taskObject.actigraphy_features.P_dens,'horizontal_scale': yule_walker.freq})
-
-        if option == "single":
-            fig, ax1 = plt.subplots()
-
-            for item in data_list:
-                #ax.plot(item['horizontal_scale'], item['periodogram'], label=item['label'] + "_periodogram")
-                #ax1.plot(item['horizontal_scale'], item['values'], label = item['label'] + "_mine")
-                ax1.plot(item['horizontal_scale'], item['values_statsmodel'], label = item['label'] + "_statsmodel")
-
-            ax1.legend()
-            ax1.set_title("PSD Estimation")
-            fig.canvas.set_window_title("Patient: {} | Experiment: {}".format(self.sessionObject.patient_id,
-                                                                              self.sessionObject.experiment_number))
-
-            plt.ylabel("PSD (dB/rad/sample)")
-            plt.xlabel(r'Normalized Frequency ($\times \pi$rad/sample)')
-
-        elif option == "multiple":
-            nr = ceil(len(self.sessionObject.existing_tasks_indexes)/2)
-            nc = 2
-
-            plt.figure()
-            #plt.figure("Patient: {} | Experiment: {}".format(self.sessionObject.patient_id,
-            #                                                 self.sessionObject.experiment_number))
-            plt.suptitle("AR Model Predictions")
-            counter = 0
-
-            for item in data_list:
-                counter += 1
-                plt.subplot(nr, nc, counter)
-                #plt.plot(item['horizontal_scale'], item['periodogram'], label="periodogram")
-                #plt.plot(item['horizontal_scale'], item['values'], label="psd_mine")
-                plt.plot(item['horizontal_scale'], item['values_statsmodel'], label="psd_statsmodel")
-                plt.legend()
-                plt.ylabel("PSD (dB/rad/sample)")
-                plt.xlabel(r'Normalized Frequency ($\times \pi$rad/sample)')
-                plt.title(item['label'])
-
-    def single_plot(self, title, y_label, x_label, data_list, mode):
-        fig, ax = plt.subplots()
-        if mode == "normal":
-            for item in data_list:
-                ax.plot(item['values'], label = item['label'])
-
-            ax.legend()
-            ax.set_title(title)
-            fig.canvas.set_window_title("Patient: {} | Experiment: {}".format(self.sessionObject.patient_id, self.sessionObject.experiment_number))
-            plt.ylabel(y_label)
-            plt.xlabel(x_label)
-
-        elif mode == "semilogy":
-            for item in data_list:
-                ax.semilogy(item['freq'], item['values'], label = item['label'])
-
-            ax.legend()
-            ax.set_title(title)
-            fig.canvas.set_window_title("Patient: {} | Experiment: {}".format(self.sessionObject.patient_id, self.sessionObject.experiment_number))
-            plt.ylabel(y_label)
-            plt.xlabel(x_label)
-
-        elif mode == "stem":
-            for item in data_list:
-                ax.plot(item['values'], '.', label = item['label'])
-
-            ax.legend()
-            ax.set_title(title)
-            fig.canvas.set_window_title("Patient: {} | Experiment: {}".format(self.sessionObject.patient_id, self.sessionObject.experiment_number))
-            plt.ylabel(y_label)
-            plt.xlabel(x_label)
-
-    def multiple_plot(self, title, nr, nc, y_label, x_label, data_list, mode):
-        plt.figure("Patient: {} | Experiment: {}".format(self.sessionObject.patient_id, self.sessionObject.experiment_number))
-        plt.suptitle(title)
-        counter = 0
-
-        if mode == "normal":
-            for item in data_list:
-                counter += 1
-                plt.subplot(nr, nc, counter)
-
-                # Building time scale
-                #start_index = item['indexes'][item['type']]["start_index"]
-                #end_index = item['indexes'][item['type']]["end_index"]
-                #time_scale = self.sessionObject.time_scale[item["type"]][start_index:end_index]
-                plt.plot(item['values'])
-                #plt.plot(time_scale, item['values'])
-                plt.ylabel(y_label)
-                plt.xlabel(x_label)
-                plt.title(item['label'])
-
-        elif mode == "semilogy":
-            for item in data_list:
-                counter += 1
-                plt.subplot(nr, nc, counter)
-                plt.semilogy(item['freq'], item['values'])
-                plt.ylabel(y_label)
-                plt.xlabel(x_label)
-                plt.title(item['label'])
-
-        elif mode == "stem":
-            for item in data_list:
-                counter += 1
-                plt.subplot(nr, nc, counter)
-                plt.plot(item['values'], '.')
-                plt.ylabel(y_label)
-                plt.xlabel(x_label)
-                plt.title(item['label'])
-
-
-class MultipleVisualization:
-    def __init__(self, sessionList):
-        self.sessionList = sessionList
-
-        self.structured_data = self.structure_data()
-
-    def structure_data(self):
-        # Returns a dictionary indexed by task names. Each entry has an array of Task Objects corresponding to the different experiments
-        all_sessions = dict()
+    def task_actigraphy(self, analysis):
+        data_structure = {}
 
         for task in gv.EXERCISE_LIST:
-            data_list = []
+            data_element = []
+            for session in self.session_list:
+                if task in session.existing_tasks_indexes:
+                    data_element.append({'value': session.taskObjectsDic[task].task_data["ACC_MAG"].values, 'experiment_number': session.experiment_number,
+                                         'period': session.label, 'y_label': gv.UNITS["ACC"], 'x_label': "Samples"})
+            data_structure[task] = data_element
 
-            for i in range(len(self.sessionList)):
-                if task in self.sessionList[i].taskObjectsDic.keys():
-                    data_list.append({'task_object': self.sessionList[i].taskObjectsDic[task], 'patient_id': self.sessionList[i].patient_id,
-                                      'experiment_number': self.sessionList[i].experiment_number, 'label': self.sessionList[i].label})
-                else:
-                    data_list.append({'task_object': None, 'experiment_number': self.sessionList[i].experiment_number})
+        if analysis == "patient":
+            self.plot(data_structure, "Task Actigraphy", "experiment_number", 5, 2)
 
-            all_sessions[task] = data_list
+        elif analysis == "group":
+            self.plot_periods(data_structure, "Task Actigraphy", "period", 5, 2)
 
-        return all_sessions
+    def spectral_density(self, analysis):
+        data_structure = {}
+        for task in gv.EXERCISE_LIST:
+            data_element = []
+            for session in self.session_list:
+                if task in session.existing_tasks_indexes:
+                    data_element.append({'value': session.taskObjectsDic[task].actigraphy.yule_walker.dens_statsmodel,
+                                        'freq_axis': session.taskObjectsDic[task].actigraphy.yule_walker.freq_statsmodel,
+                                         'experiment_number': session.experiment_number, 'period': session.label, 'y_label': "dB/rad/Sample", "x_label": "Normalized Frequency"})
+            data_structure[task] = data_element
 
-    def power_spectral_density(self):
-        data_object = dict()
+        if analysis == "patient":
+            self.plot(data_structure, "Spectral Density", "experiment_number", 5, 2)
 
-        for task in self.structured_data:
-            data_object[task] = []
-            task_list = self.structured_data[task]
+        elif analysis == "group":
+            self.plot_periods(data_structure, "Spectral Density", "period", 5, 2)
 
-            for i in range(len(task_list)):
-                if task_list[i]["task_object"] is None:
-                    print("None detected")
-                else:
-                    task_obj = task_list[i]["task_object"]
-                    experiment = task_list[i]["experiment_number"]
+    def ar_coefficients(self, analysis):
+        data_structure = {}
 
-                    # Afterwards add label to data_list
-                    data_object[task].append({'density': task_obj.actigraphy_features.yule_walker.dens_statsmodel, 'freq': task_obj.actigraphy_features.yule_walker.freq_statsmodel,
-                                              'experiment_number': experiment, 'label': task_list[i]["label"]})
+        for task in gv.EXERCISE_LIST:
+            data_element = []
+            for session in self.session_list:
+                if task in session.existing_tasks_indexes:
+                    data_element.append({'value': session.taskObjectsDic[task].actigraphy.yule_walker.ar_coefficients,
+                                        'experiment_number': session.experiment_number, 'period': session.label,
+                                         'y_label': 'Value', "x_label": "Coefficient"})
+            data_structure[task] = data_element
 
-        self.multiple_plot(data_object, "PSD Estimation", 5, 2, "dB/rad/sample", r'Normalized Frequency ($\times \pi$rad/sample)', 'density', 'freq')
+        if analysis == "patient":
+            self.plot(data_structure, "AR Coefficients", "experiment_number", 5, 2, "stem")
 
-    def multiple_plot(self, data_object, title, nr, nc, y_label, x_label, y_tag, x_tag):
+        elif analysis == "group":
+            self.plot_periods(data_structure, "AR Coefficients", "period", 5, 2)
+
+    def ar_fitting(self, analysis):
+        data_structure = {}
+        for task in gv.EXERCISE_LIST:
+            data_element = []
+            for session in self.session_list:
+                if task in session.existing_tasks_indexes:
+                    data_element.append({'predicted': session.taskObjectsDic[task].actigraphy.yule_walker.prediction_v_statsmodel,
+                                        'data': session.taskObjectsDic[task].task_data["ACC_MAG"].values, 'experiment_number': session.experiment_number,
+                                        'period': session.label, 'y_label': gv.UNITS["ACC"], 'x_label': "Samples"})
+            data_structure[task] = data_element
+
         plt.figure()
-        plt.suptitle(title)
+        plt.suptitle("AR Fitting - " + "Patient:{} | Experiments: {}".format(self.patient_id, self.experiments))
         counter = 0
 
-        for task in data_object:
+        for key in data_structure.keys():
+            data_element = data_structure[key]
+            counter += 1
+            plt.subplot(5, 2, counter)
+
+            for element in data_element:
+                plt.plot(element['data'], label = "data")
+                plt.plot(element['predicted'], label = "predicted")
+
+            plt.legend(loc = "best")
+            plt.ylabel(element["y_label"])
+            plt.xlabel(element["x_label"])
+            plt.title(key)
+
+    def main(self, option, analysis):
+        if option == "raw_signals":
+            self.raw_signals(analysis)
+        elif option == "raw_detrended_signals":
+            self.raw_detrended_signals(analysis)
+        elif option == "raw_magnitude_signals":
+            self.raw_magnitude_signals(analysis)
+        elif option == "task_actigraphy":
+            self.task_actigraphy(analysis)
+        elif option == "spectral_density":
+            self.spectral_density(analysis)
+        elif option == "ar_fitting":
+            self.ar_fitting(analysis)
+        elif option == "ar_coefficients":
+            self.ar_coefficients(analysis)
+
+    def plot(self, data_structure, title, label_key, nr, nc, display_mode = None):
+        plt.figure()
+        plt.suptitle(title + "Patient:{} | Experiments: {}".format(self.patient_id, self.experiments))
+        counter = 0
+
+        for key in data_structure.keys():
+            data_element = data_structure[key]
             counter += 1
             plt.subplot(nr, nc, counter)
-            for item in data_object[task]:
-                plt.plot(item[x_tag], item[y_tag], label = item["label"])
 
-            plt.legend()
-            plt.ylabel(y_label)
-            plt.xlabel(x_label)
-            plt.title(task)
+            for element in data_element:
+                if key is "IBI":
+                    plt.plot(element['value']['T'], element['value']['IBI'], label = element[label_key])
+                elif key is "ACC_RAW" or key is "ACC_DETRENDED":
+                    plt.plot(element['value']['X'], label = repr(element[label_key]) + "_X")
+                    plt.plot(element['value']['Y'], label = repr(element[label_key]) + "_Y")
+                    plt.plot(element['value']['Z'], label = repr(element[label_key]) + "_Z")
+                else:
+                    if display_mode == "stem":
+                        plt.plot(element['value'], '.', label = element[label_key])
+                    else:
+                        plt.plot(element['value'], label = element[label_key])
+
+            plt.legend(loc = "best")
+            plt.ylabel(element["y_label"])
+            plt.xlabel(element["x_label"])
+            plt.title(key)
+
+    def plot_periods(self, data_structure, title, label_key, nr, nc):
+        plt.figure()
+        plt.suptitle(title + "Patient:{} | Experiments: {}".format(self.patient_id, self.experiments))
+        counter = 0
+
+        for key in data_structure.keys():
+            data_element = data_structure[key]
+            counter += 1
+            plt.subplot(nr, nc, counter)
+
+            for element in data_element:
+                if key is "IBI":
+                    if element[label_key] == "morning":
+                        plt.plot(element['value']['T'], element['value']['IBI'], color="red")
+                    elif element[label_key] == "afternoon":
+                        plt.plot(element['value']['T'], element['value']['IBI'], color="green")
+                    elif element[label_key] == "lunch":
+                        plt.plot(element['value']['T'], element['value']['IBI'], color="blue")
+
+                elif key is "ACC_RAW" or key is "ACC_DETRENDED":
+                    if element[label_key] == "morning":
+                        plt.plot(element['value'], color="red")
+                    elif element[label_key] == "afternoon":
+                        plt.plot(element['value'], color="green")
+                    elif element[label_key] == "lunch":
+                        plt.plot(element['value'], color="blue")
+
+                else:
+                    if element[label_key] == "morning":
+                        plt.plot(element['value'], color="red")
+                    elif element[label_key] == "afternoon":
+                        plt.plot(element['value'], color="green")
+                    elif element[label_key] == "lunch":
+                        plt.plot(element['value'],color="blue")
+
+            red_patch = mpatches.Patch(color='red', label='Morning')
+            green_patch = mpatches.Patch(color='green', label='Afternoon')
+            blue_patch = mpatches.Patch(color='blue', label='Lunch')
+            plt.legend(handles=[red_patch, green_patch, blue_patch])
+            plt.ylabel(element["y_label"])
+            plt.xlabel(element["x_label"])
+            plt.title(key)
+
+        #plt.legend(loc="best")
 
 if __name__ == "__main__":
     patient = "D1"
 
     sessionList = []
-    sessionList.append(completeSession(patient, 1))
-    print("First")
-    sessionList.append(completeSession(patient, 2))
-    print("Second")
-    sessionList.append(completeSession(patient, 3))
-    print("Third")
+    sessionList.append(CompleteSession(patient, 2, True))
+    sessionList.append(CompleteSession(patient, 3, True))
+    # sessionList.append(completeSession(patient, 3))
 
-    multiple_view = MultipleVisualization(sessionList)
-    structured_data = multiple_view.structured_data
-    multiple_view.power_spectral_density()
-    plt.show()
+    visualization = DataVisualization(sessionList)
+    visualization.main_method("raw_signals")

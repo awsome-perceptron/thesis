@@ -48,6 +48,12 @@ class DatabaseObject:
         print("User " + p_id + " and entries deleted!")
         self.db.commit()
 
+    def delete_patient_experiment(self, p_id, experiment_number):
+        cursor = self.db.cursor()
+        sql = '''DELETE FROM session WHERE patient_id = ? AND number = ?'''
+        cursor.execute(sql, (p_id, experiment_number))
+        print("Experiment " + experiment_number + " from patient " + p_id + " was deleted")
+        self.db.commit()
 
     def insert_patient(self, p_id, p_name):
         p_epoch = int(time.time())
@@ -327,6 +333,7 @@ if __name__ == "__main__":
 
     db_obj.display_patients()
     db_obj.display_sessions()
+    db_obj.delete_patient_experiment("H5", 4)
 
     # USER INTERFACE
     root = Tk()

@@ -2,19 +2,18 @@ from empatica import empaticaParser
 from timings import timingsParser
 from panas import panasParser
 from task import Task
-from unit_testing import unitTesting
 #from visualization import DataVisualization
 import global_variables as gv
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import time
+import pickle
 
 
-class completeSession:
+class CompleteSession:
     #When creating this object search for exceptions for missing data
-    def __init__(self, patient_id, experiment_number):
+    def __init__(self, patient_id, experiment_number, fast_performance):
         self.patient_id = patient_id
         self.experiment_number = experiment_number
         self.folder = gv.BASE_FOLDER + patient_id + "\\" + repr(experiment_number)
@@ -27,18 +26,24 @@ class completeSession:
 
         # Session attributes
         self.time_scale = self.empaticaObject.time_scale
+        self.label = self.timingsObject.experiment_label
+        self.fast_performance = fast_performance
 
-        self.label =self.timingsObject.experiment_label
-
-        #Create list of existing tasks and pauses
+        # Create list of existing tasks and pauses
         (self.existing_tasks_indexes, self.existing_pauses_indexes) = self.build_existing_lists(self.timingsObject.exercise_indexes, self.timingsObject.pause_indexes, self.empaticaObject.actigraphy_length)
 
-        #Build pause indexes and detrend actigraphy data
+        # Call method to detrend actigraphy data. Pass existing task and pause indexes, to detrend by blocks
         self.empaticaObject.build_detrended_data(self.existing_tasks_indexes, self.existing_pauses_indexes)
 
-        #Creation of task objects list
+        # Creation of task objects list
         self.taskObjectsList, self.taskObjectsDic = self.build_task_objects_list()
         #self.taskObjectsList = self.testing_task_object()
+
+        # Update or Load Yule Walker Objects
+        self.update_or_load_yule_walker(fast_performance)
+
+        # Set session features
+        self.session_features = self.build_session_features()
 
     def build_existing_lists(self, task_indexes, pause_indexes, actigraphy_length):
         tasks_list = {}
@@ -47,14 +52,14 @@ class completeSession:
             start_index = task_indexes[task]["ACC"]["start_index"]
             end_index = task_indexes[task]["ACC"]["end_index"]
 
-            if end_index < actigraphy_length:
+            if end_index <= actigraphy_length and start_index <= actigraphy_length:
                 tasks_list[task] = task_indexes[task]
 
         for pause in pause_indexes.keys():
             start_index = pause_indexes[pause]["ACC"]["start_index"]
             end_index = pause_indexes[pause]["ACC"]["end_index"]
 
-            if end_index < actigraphy_length:
+            if end_index <= actigraphy_length and start_index <= actigraphy_length:
                 pauses_list[pause] = pause_indexes[pause]
 
         return tasks_list, pauses_list
@@ -68,7 +73,7 @@ class completeSession:
                 continue
             if signal == "IBI":
                 continue
-            elif signal == "ACC_MAG" or signal == "ACC_DETRENDED" or signal == "ACC_RAW" or signal == "ACC_MAG_ALT":
+            elif signal == "ACC_MAG" or signal == "ACC_DETRENDED" or signal == "ACC_RAW":
                 start_index = task_indexes["ACC"]["start_index"]
                 end_index = task_indexes["ACC"]["end_index"]
             else:
@@ -76,6 +81,8 @@ class completeSession:
                 end_index = task_indexes[signal]["end_index"]
 
             task_data[signal] = self.empaticaObject.data_final[signal][start_index:end_index]
+
+        task_data["ACC_RAW_MEANS"] = self.empaticaObject.data_final["ACC_MEANS"][task_name]
 
         return task_data
 
@@ -87,7 +94,7 @@ class completeSession:
             task_data = self.fetch_task_data(task_name, self.existing_tasks_indexes[task_name])
             task_indexes = self.existing_tasks_indexes[task_name]
             task_duration = self.timingsObject.exercise_duration[task_name]
-            taskObject = Task(task_name, task_duration, task_data, task_indexes, self.empaticaObject.actigraphy_means_tasks[task_name])
+            taskObject = Task(task_name, task_duration, task_data, task_indexes, self.fast_performance, self.folder)
             taskObjects_list.append(taskObject)
             taskObjects_dic[task_name] = taskObject
 
@@ -100,43 +107,60 @@ class completeSession:
         task_data = self.fetch_task_data(task_name, self.existing_tasks_indexes[task_name])
         task_indexes = self.existing_tasks_indexes[task_name]
         task_duration = self.timingsObject.exercise_duration[task_name]
-        taskObjects_list.append(Task(task_name, task_duration, task_data, task_indexes,
-                                     self.empaticaObject.actigraphy_means_tasks[task_name]))
+        taskObjects_list.append(Task(task_name, task_duration, task_data, task_indexes, self.fast_performance, self.folder))
 
         return taskObjects_list
 
+    def update_or_load_yule_walker(self, fast_performance):
+        dictionary = dict()
+        if fast_performance:
+            # Load Yule Walker Objets
+            with open(self.folder + "//" + "yule_walker.pkl", 'rb') as input:
+                yule_walker = pickle.load(input)
+
+                for task in self.existing_tasks_indexes.keys():
+                    self.taskObjectsDic[task].actigraphy.yule_walker = yule_walker[task]
+                    #print(self.taskObjectsDic[task].actigraphy_features.yule_walker.ar_coefficients)
+
+        else:
+            # Update Yule Walker Objects
+            for task in self.existing_tasks_indexes.keys():
+                dictionary[task] = self.taskObjectsDic[task].actigraphy.yule_walker
+
+            with open(self.folder + "//" + "yule_walker.pkl", 'wb') as output:
+                pickle.dump(dictionary, output, pickle.HIGHEST_PROTOCOL)
+
+    def build_session_features(self):
+        # Call method to set the features of each task (has to be done manually because yule walker class is empty on the begging, on fast performance)
+        for task in self.taskObjectsList:
+            task.build_task_features()
+
+        # Store all session features on the following dictionary
+        session_features = dict()
+        session_features['patient_id'] = self.patient_id
+        session_features['experiment_number'] = self.experiment_number
+        session_features['label'] = self.label
+        session_features['PA'] = self.panasObject.panas_series['PA']
+        session_features['NA'] = self.panasObject.panas_series['NA']
+
+        for task in self.existing_tasks_indexes.keys():
+            session_features[task] = self.taskObjectsDic[task].task_features
+
+        return session_features
+
+
 if __name__ == "__main__":
     initial_time = time.perf_counter()
-    patient = "D1"
-    experiment = "1"
+    patient = "H1"
+    experiment = "3"
     experiment_number = int(experiment)
     base_folder = "C:\\Users\\Naim\\Desktop\\Tese\\Programming\\Data\\"
-    complete_folder = base_folder + patient + "\\" + experiment
+    folder = base_folder + patient + "\\" + experiment
 
-    sessionObject = completeSession(patient, experiment_number)
-
-    # testing = unitTesting(sessionObject)
-    #
-    # view = DataVisualization(sessionObject)
-    # #view.task_actigraphy("multiple")
-    # #view.actigraphy_magnitude_alternatives()
-    # #view.autocorrelation_visualization("single")
-    # #view.psd_visualization("multiple")
-    # #view.ar_coefficients_visualization("multiple")
-    # view.ar_model_predictions("multiple")
-    # view.power_spectral_density("multiple")
-    # view.power_spectral_density("single")
-
+    ini_time = time.perf_counter()
+    sessionObject = CompleteSession(patient, experiment_number, False)
+    yule_walker = sessionObject.taskObjectsDic["drawing"].actigraphy.yule_walker
+    teste = sessionObject.session_features
 
     end_time = time.perf_counter()
-    print("Time to Run: {}".format(end_time - initial_time))
-    plt.show()
-
-    #Declaration of variables to be easier to work inside interpreter
-    task = sessionObject.taskObjectsList[0]
-    features = task.actigraphy_features
-    yule_walker = task.actigraphy_features.yule_walker
-
-    #testing.print_head_of_tasks_data()
-
-
+    print("Time to run: {}".format(end_time - ini_time))
